@@ -1,752 +1,307 @@
 import streamlit as st
-import sys
-import traceback
+import yfinance as yf
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
+from datetime import datetime
 
+# Page config
+st.set_page_config(page_title="Tech Analysis", layout="wide", initial_sidebar_state="expanded")
 
-# Now import the packages
-try:
-    import yfinance as yf
-    import pandas as pd
-    import numpy as np
-    import plotly.graph_objects as go
-    from plotly.subplots import make_subplots
-    from datetime import datetime
+# Popular symbols for autocomplete
+POPULAR_SYMBOLS = [
+    "AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX",
+    "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"
+]
+
+# Indicator calculations
+def calculate_rsi(close, period=14):
+    delta = close.diff()
+    gain = delta.where(delta > 0, 0)
+    loss = -delta.where(delta < 0, 0)
+    avg_gain = gain.ewm(alpha=1/period, adjust=False).mean()
+    avg_loss = loss.ewm(alpha=1/period, adjust=False).mean()
+    rs = avg_gain / avg_loss
+    return 100 - (100 / (1 + rs)).fillna(50)
+
+def calculate_cci(high, low, close, period=20):
+    tp = (high + low + close) / 3
+    sma = tp.rolling(window=period).mean()
+    mad = tp.rolling(window=period).apply(lambda x: np.abs(x - x.mean()).mean(), raw=False)
+    return ((tp - sma) / (0.015 * mad)).fillna(0)
+
+def calculate_macd(close, fast=12, slow=26, signal=9):
+    ema_fast = close.ewm(span=fast, adjust=False).mean()
+    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    macd = ema_fast - ema_slow
+    signal_line = macd.ewm(span=signal, adjust=False).mean()
+    return macd, signal_line, macd - signal_line
+
+def calculate_adx(high, low, close, period=14):
+    tr = pd.concat([high - low, 
+                   abs(high - close.shift()), 
+                   abs(low - close.shift())], axis=1).max(axis=1)
+    atr = tr.ewm(alpha=1/period, adjust=False).mean()
     
-    # Set page configuration
-    st.set_page_config(
-        page_title="Technical Analysis Dashboard",
-        page_icon="📈",
-        layout="wide",
-        initial_sidebar_state="expanded"
+    up_move = high - high.shift()
+    down_move = low.shift() - low
+    pos_dm = pd.Series(np.where((up_move > down_move) & (up_move > 0), up_move, 0), index=high.index)
+    neg_dm = pd.Series(np.where((down_move > up_move) & (down_move > 0), down_move, 0), index=high.index)
+    
+    pos_di = 100 * pos_dm.ewm(alpha=1/period, adjust=False).mean() / atr
+    neg_di = 100 * neg_dm.ewm(alpha=1/period, adjust=False).mean() / atr
+    dx = 100 * abs(pos_di - neg_di) / (pos_di + neg_di).replace(0, np.nan)
+    return dx.ewm(alpha=1/period, adjust=False).mean().fillna(0)
+
+def calculate_drawdown(prices):
+    cummax = prices.cummax()
+    return (prices - cummax) / cummax * 100
+
+# Trading logic
+def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
+    df = df.copy()
+    df['Signal'] = ''
+    trades = []
+    in_position, entry_price, entry_date = False, 0, None
+    
+    for i in range(1, len(df)):
+        date, close, rsi, cci = df.index[i], df['Close'].iloc[i], df['RSI'].iloc[i], df['CCI'].iloc[i]
+        
+        if not in_position and rsi > buy_rsi and cci > buy_cci:
+            in_position, entry_price, entry_date = True, close, date
+            df.loc[date, 'Signal'] = 'BUY'
+        elif in_position and rsi < sell_rsi and cci < sell_cci:
+            pnl = (close - entry_price) / entry_price * 100
+            holding = (date - entry_date).days
+            df.loc[date, 'Signal'] = 'SELL'
+            trades.append({
+                'Entry_Date': entry_date, 'Exit_Date': date,
+                'Entry_Price': entry_price, 'Exit_Price': close,
+                'P_L': pnl, 'Holding_Days': holding
+            })
+            in_position = False
+    
+    # Close open position at end
+    if in_position:
+        date, close = df.index[-1], df['Close'].iloc[-1]
+        pnl = (close - entry_price) / entry_price * 100
+        holding = (date - entry_date).days
+        df.loc[date, 'Signal'] = 'SELL (End)'
+        trades.append({
+            'Entry_Date': entry_date, 'Exit_Date': date,
+            'Entry_Price': entry_price, 'Exit_Price': close,
+            'P_L': pnl, 'Holding_Days': holding
+        })
+    
+    return df, trades
+
+# Chart creation
+def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
+    fig = make_subplots(
+        rows=5, cols=1,
+        shared_xaxes=True,
+        vertical_spacing=0.05,
+        subplot_titles=(f'{symbol}', 'RSI & CCI', 'ADX', 'MACD', 'Drawdown'),
+        row_heights=[0.4, 0.15, 0.1, 0.15, 0.1]
     )
     
-    # Custom CSS
+    # Price & Volume
+    colors = ['red' if close < open else 'green' for close, open in zip(df['Close'], df['Open'])]
+    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], 
+                                 low=df['Low'], close=df['Close'], name='Price'), row=1, col=1)
+    fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', 
+                         marker_color=colors, opacity=0.3), row=1, col=1)
+    
+    # Signals
+    for signal, color, symbol in [('BUY', 'green', 'triangle-up'), ('SELL', 'red', 'triangle-down')]:
+        dates = df[df['Signal'].str.contains(signal, na=False)].index
+        if len(dates) > 0:
+            y = df.loc[dates, 'Low'] * 0.98 if signal == 'BUY' else df.loc[dates, 'High'] * 1.02
+            fig.add_trace(go.Scatter(x=dates, y=y, mode='markers', name=signal,
+                                    marker=dict(symbol=symbol, size=12, color=color)), row=1, col=1)
+    
+    # Indicators
+    indicators = [
+        ('RSI', 'blue', 2), ('CCI', 'orange', 2),
+        ('ADX', 'purple', 3), ('MACD', 'blue', 4),
+        ('MACD_signal', 'red', 4), ('Drawdown', 'red', 5)
+    ]
+    
+    for indicator, color, row in indicators:
+        fig.add_trace(go.Scatter(x=df.index, y=df[indicator], name=indicator,
+                                line=dict(color=color)), row=row, col=1)
+    
+    # MACD Histogram
+    colors_hist = ['green' if val >= 0 else 'red' for val in df['MACD_hist']]
+    fig.add_trace(go.Bar(x=df.index, y=df['MACD_hist'], marker_color=colors_hist,
+                        opacity=0.5, showlegend=False), row=4, col=1)
+    
+    # Levels
+    levels = [
+        (buy_rsi, 'green', f'BUY RSI>{buy_rsi}', 2),
+        (sell_rsi, 'red', f'SELL RSI<{sell_rsi}', 2),
+        (buy_cci, 'green', f'BUY CCI>{buy_cci}', 2),
+        (sell_cci, 'red', f'SELL CCI<{sell_cci}', 2),
+        (25, 'orange', 'Strong Trend', 3),
+        (0, 'gray', None, 4)
+    ]
+    
+    for level, color, text, row in levels:
+        fig.add_hline(y=level, line_dash="dash", line_color=color, opacity=0.7,
+                     annotation_text=text, row=row, col=1)
+    
+    fig.update_layout(height=1000, showlegend=True, hovermode='x unified')
+    fig.update_xaxes(rangeslider_visible=False)
+    fig.update_xaxes(rangeslider_visible=True, row=5, col=1)
+    
+    return fig
+
+# Main App
+st.title("📈 Technical Analysis Dashboard")
+
+# Sidebar
+with st.sidebar:
+    st.header("⚙️ Settings")
+    
+    # Symbol with autocomplete dropdown
+    selected_symbol = st.selectbox(
+        "Stock Symbol",
+        options=POPULAR_SYMBOLS,
+        index=POPULAR_SYMBOLS.index("GOOG") if "GOOG" in POPULAR_SYMBOLS else 0
+    )
+    
+    # Also allow custom input
+    custom_symbol = st.text_input("Or enter custom symbol", "")
+    symbol = custom_symbol.upper() if custom_symbol else selected_symbol
+    
+    # Period
+    period = st.selectbox("Period", ["1y", "2y", "3y", "5y", "10y", "max"], index=0)
+    
+    # Trading rules
+    st.subheader("Trading Rules")
+    buy_rsi = st.slider("Buy: RSI >", 50, 80, 60)
+    buy_cci = st.slider("Buy: CCI >", -100, 100, 0)
+    sell_rsi = st.slider("Sell: RSI <", 20, 50, 30)
+    sell_cci = st.slider("Sell: CCI <", -100, 100, 0)
+    
+    # Indicator settings
+    st.subheader("Indicator Periods")
+    col1, col2 = st.columns(2)
+    with col1:
+        rsi_period = st.slider("RSI", 5, 30, 14)
+        cci_period = st.slider("CCI", 5, 30, 20)
+    with col2:
+        adx_period = st.slider("ADX", 5, 30, 14)
+        macd_fast = st.slider("MACD Fast", 5, 20, 12)
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        macd_slow = st.slider("MACD Slow", 15, 35, 26)
+    with col2:
+        macd_signal = st.slider("MACD Signal", 5, 15, 9)
+    
+    if st.button("🚀 Analyze", type="primary", use_container_width=True):
+        st.session_state.analyze = True
+    else:
+        st.session_state.analyze = False
+
+# Main content
+if st.session_state.get('analyze', False):
+    try:
+        # Download data
+        with st.spinner(f"Fetching {symbol} data..."):
+            data = yf.download(symbol, period=period, progress=False)
+            if data.empty:
+                st.error(f"No data found for {symbol}")
+                st.stop()
+        
+        # Calculate indicators
+        data['RSI'] = calculate_rsi(data['Close'], rsi_period)
+        data['CCI'] = calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
+        data['ADX'] = calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
+        data['MACD'], data['MACD_signal'], data['MACD_hist'] = calculate_macd(
+            data['Close'], macd_fast, macd_slow, macd_signal
+        )
+        data['Drawdown'] = calculate_drawdown(data['Close'])
+        
+        # Calculate trades
+        data, trades = calculate_trades(data, buy_rsi, buy_cci, sell_rsi, sell_cci)
+        
+        # Metrics
+        col1, col2, col3, col4 = st.columns(4)
+        with col1:
+            price = data['Close'].iloc[-1]
+            change = (price - data['Close'].iloc[0]) / data['Close'].iloc[0] * 100
+            st.metric("Current Price", f"${price:.2f}", f"{change:+.2f}%")
+        with col2:
+            win_rate = (len([t for t in trades if t['P_L'] > 0]) / len(trades) * 100) if trades else 0
+            st.metric("Win Rate", f"{win_rate:.1f}%", f"{len(trades)} trades")
+        with col3:
+            avg_pnl = np.mean([t['P_L'] for t in trades]) if trades else 0
+            st.metric("Avg P&L", f"{avg_pnl:+.2f}%")
+        with col4:
+            avg_days = np.mean([t['Holding_Days'] for t in trades]) if trades else 0
+            st.metric("Avg Days", f"{avg_days:.1f}")
+        
+        # Chart
+        st.plotly_chart(create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol), 
+                       use_container_width=True)
+        
+        # Trade details
+        if trades:
+            st.subheader("📋 Trade History")
+            trades_df = pd.DataFrame(trades)
+            
+            # Format for display
+            display_df = trades_df.copy()
+            display_df['Entry_Date'] = display_df['Entry_Date'].dt.strftime('%Y-%m-%d')
+            display_df['Exit_Date'] = display_df['Exit_Date'].dt.strftime('%Y-%m-%d')
+            display_df['Entry_Price'] = display_df['Entry_Price'].apply(lambda x: f"${x:.2f}")
+            display_df['Exit_Price'] = display_df['Exit_Price'].apply(lambda x: f"${x:.2f}")
+            display_df['P_L'] = display_df['P_L'].apply(lambda x: f"{x:+.2f}%")
+            
+            st.dataframe(display_df, use_container_width=True)
+            
+            # Performance
+            col1, col2, col3, col4 = st.columns(4)
+            with col1:
+                st.metric("Best Trade", f"{trades_df['P_L'].max():+.2f}%")
+            with col2:
+                st.metric("Worst Trade", f"{trades_df['P_L'].min():+.2f}%")
+            with col3:
+                st.metric("Total Return", f"{trades_df['P_L'].sum():+.2f}%")
+            with col4:
+                sharpe = (trades_df['P_L'].mean() / trades_df['P_L'].std() * np.sqrt(252/avg_days)) if len(trades_df) > 1 and trades_df['P_L'].std() != 0 else 0
+                st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+        
+        # Export
+        with st.expander("📊 Data Export"):
+            csv = data.to_csv().encode('utf-8')
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"{symbol}_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+            
+    except Exception as e:
+        st.error(f"Error: {str(e)}")
+
+else:
+    # Welcome screen
     st.markdown("""
-    <style>
-        .main-header {
-            font-size: 2.5rem;
-            color: #1E88E5;
-            text-align: center;
-            margin-bottom: 1rem;
-        }
-        .sub-header {
-            font-size: 1.5rem;
-            color: #424242;
-            margin-bottom: 1rem;
-        }
-        .metric-card {
-            background-color: #f5f5f5;
-            padding: 1rem;
-            border-radius: 10px;
-            margin: 0.5rem 0;
-        }
-        .positive {
-            color: #4CAF50;
-            font-weight: bold;
-        }
-        .negative {
-            color: #f44336;
-            font-weight: bold;
-        }
-    </style>
+    <div style='text-align: center; padding: 2rem;'>
+        <h3>Welcome to Technical Analysis Dashboard</h3>
+        <p>Select a stock and parameters, then click Analyze</p>
+        <div style='display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin: 2rem 0;'>
     """, unsafe_allow_html=True)
     
-    # ================== INDICATOR CALCULATIONS USING PANDAS/NUMPY ==================
+    cols = st.columns(5)
+    for idx, sym in enumerate(POPULAR_SYMBOLS[:10]):
+        with cols[idx % 5]:
+            if st.button(sym, use_container_width=True):
+                st.session_state.custom_symbol = sym
+                st.rerun()
     
-    def calculate_rsi_pandas(close, period=14):
-        """
-        Calculate RSI using pandas/numpy only
-        Formula: RSI = 100 - (100 / (1 + RS))
-        RS = Average Gain / Average Loss
-        """
-        try:
-            # Calculate price changes
-            delta = close.diff()
-            
-            # Separate gains and losses
-            gain = delta.where(delta > 0, 0)
-            loss = -delta.where(delta < 0, 0)
-            
-            # Calculate average gain and loss using EMA
-            avg_gain = gain.ewm(alpha=1/period, adjust=False).mean()
-            avg_loss = loss.ewm(alpha=1/period, adjust=False).mean()
-            
-            # Calculate RS and RSI
-            rs = avg_gain / avg_loss
-            rsi = 100 - (100 / (1 + rs))
-            
-            return rsi.fillna(50)  # Fill NaN with neutral 50
-        except Exception as e:
-            st.error(f"Error calculating RSI: {str(e)}")
-            return pd.Series([50] * len(close), index=close.index)
-    
-    def calculate_cci_pandas(high, low, close, period=20):
-        """
-        Calculate CCI using pandas/numpy only
-        Formula: CCI = (Typical Price - SMA) / (0.015 * Mean Deviation)
-        """
-        try:
-            # Calculate typical price
-            typical_price = (high + low + close) / 3
-            
-            # Calculate SMA
-            sma = typical_price.rolling(window=period).mean()
-            
-            # Calculate mean deviation
-            mean_deviation = typical_price.rolling(window=period).apply(
-                lambda x: np.abs(x - x.mean()).mean(), 
-                raw=False
-            )
-            
-            # Calculate CCI
-            cci = (typical_price - sma) / (0.015 * mean_deviation)
-            
-            return cci.fillna(0)
-        except Exception as e:
-            st.error(f"Error calculating CCI: {str(e)}")
-            return pd.Series([0] * len(close), index=close.index)
-    
-    def calculate_adx_pandas(high, low, close, period=14):
-        """
-        Calculate ADX (Average Directional Index) using pandas/numpy
-        """
-        try:
-            # Calculate True Range
-            tr1 = high - low
-            tr2 = abs(high - close.shift())
-            tr3 = abs(low - close.shift())
-            true_range = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
-            
-            # Calculate Directional Movement
-            up_move = high - high.shift()
-            down_move = low.shift() - low
-            
-            plus_dm = pd.Series(0.0, index=high.index)
-            minus_dm = pd.Series(0.0, index=high.index)
-            
-            # Plus DM
-            plus_dm[(up_move > down_move) & (up_move > 0)] = up_move
-            # Minus DM
-            minus_dm[(down_move > up_move) & (down_move > 0)] = down_move
-            
-            # Smooth the DMs
-            plus_dm_smooth = plus_dm.ewm(alpha=1/period, adjust=False).mean()
-            minus_dm_smooth = minus_dm.ewm(alpha=1/period, adjust=False).mean()
-            
-            # Calculate +DI and -DI
-            plus_di = 100 * (plus_dm_smooth / true_range.ewm(alpha=1/period, adjust=False).mean())
-            minus_di = 100 * (minus_dm_smooth / true_range.ewm(alpha=1/period, adjust=False).mean())
-            
-            # Calculate DX
-            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di).replace(0, np.nan)
-            
-            # Calculate ADX as EMA of DX
-            adx = dx.ewm(alpha=1/period, adjust=False).mean()
-            
-            return adx.fillna(0)
-        except Exception as e:
-            st.error(f"Error calculating ADX: {str(e)}")
-            return pd.Series([0] * len(close), index=close.index)
-    
-    def calculate_macd_pandas(close, fast=12, slow=26, signal=9):
-        """
-        Calculate MACD using pandas/numpy only
-        """
-        try:
-            # Calculate EMAs
-            ema_fast = close.ewm(span=fast, adjust=False).mean()
-            ema_slow = close.ewm(span=slow, adjust=False).mean()
-            
-            # Calculate MACD line
-            macd = ema_fast - ema_slow
-            
-            # Calculate Signal line (EMA of MACD)
-            signal_line = macd.ewm(span=signal, adjust=False).mean()
-            
-            # Calculate Histogram
-            histogram = macd - signal_line
-            
-            return macd, signal_line, histogram
-        except Exception as e:
-            st.error(f"Error calculating MACD: {str(e)}")
-            zeros = pd.Series([0] * len(close), index=close.index)
-            return zeros, zeros, zeros
-    
-    def calculate_drawdown_pandas(prices):
-        """
-        Calculate drawdown using pandas
-        """
-        try:
-            cumulative_max = prices.cummax()
-            drawdown = (prices - cumulative_max) / cumulative_max * 100
-            return drawdown
-        except Exception as e:
-            st.error(f"Error calculating drawdown: {str(e)}")
-            return pd.Series([0] * len(prices), index=prices.index)
-    
-    # ================== TRADING LOGIC ==================
-    
-    def calculate_position_metrics(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
-        """
-        Calculate trading signals and position metrics
-        """
-        try:
-            df = df.copy()
-            df['Position'] = None
-            df['Entry_Price'] = np.nan
-            df['Exit_Price'] = np.nan
-            df['P_L'] = np.nan
-            df['Holding_Days'] = np.nan
-            df['Signal'] = ''
-            
-            in_position = False
-            entry_date = None
-            entry_price = 0
-            trades = []
-            
-            for i in range(1, len(df)):
-                current_date = df.index[i]
-                
-                # BUY signal conditions
-                if not in_position and df['RSI'].iloc[i] > buy_rsi and df['CCI'].iloc[i] > buy_cci:
-                    in_position = True
-                    entry_date = current_date
-                    entry_price = df['Close'].iloc[i]
-                    df.loc[current_date, 'Signal'] = 'BUY'
-                    df.loc[current_date, 'Position'] = 'LONG'
-                    df.loc[current_date, 'Entry_Price'] = entry_price
-                
-                # SELL signal conditions
-                elif in_position and df['RSI'].iloc[i] < sell_rsi and df['CCI'].iloc[i] < sell_cci:
-                    in_position = False
-                    exit_price = df['Close'].iloc[i]
-                    holding_days = (current_date - entry_date).days
-                    
-                    # Calculate P&L
-                    pnl = (exit_price - entry_price) / entry_price * 100
-                    
-                    # Record trade details
-                    df.loc[current_date, 'Signal'] = 'SELL'
-                    df.loc[current_date, 'Position'] = 'EXIT'
-                    df.loc[current_date, 'Exit_Price'] = exit_price
-                    df.loc[current_date, 'P_L'] = pnl
-                    df.loc[current_date, 'Holding_Days'] = holding_days
-                    
-                    # Add to trades list
-                    trades.append({
-                        'Entry_Date': entry_date,
-                        'Exit_Date': current_date,
-                        'Entry_Price': entry_price,
-                        'Exit_Price': exit_price,
-                        'P_L': pnl,
-                        'Holding_Days': holding_days
-                    })
-            
-            # Close any open position at the end
-            if in_position:
-                current_date = df.index[-1]
-                exit_price = df['Close'].iloc[-1]
-                holding_days = (current_date - entry_date).days
-                pnl = (exit_price - entry_price) / entry_price * 100
-                
-                df.loc[current_date, 'Signal'] = 'SELL (End)'
-                df.loc[current_date, 'P_L'] = pnl
-                df.loc[current_date, 'Holding_Days'] = holding_days
-                
-                trades.append({
-                    'Entry_Date': entry_date,
-                    'Exit_Date': current_date,
-                    'Entry_Price': entry_price,
-                    'Exit_Price': exit_price,
-                    'P_L': pnl,
-                    'Holding_Days': holding_days
-                })
-            
-            return df, trades
-            
-        except Exception as e:
-            st.error(f"Error in position calculation: {str(e)}")
-            return df, []
-    
-    # ================== CHART CREATION ==================
-    
-    def create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
-        """
-        Create interactive chart with all indicators
-        """
-        try:
-            fig = make_subplots(
-                rows=5, cols=1,
-                shared_xaxes=True,
-                vertical_spacing=0.05,
-                subplot_titles=(
-                    f'{symbol} - Price & Volume', 
-                    'RSI & CCI', 
-                    'ADX', 
-                    'MACD', 
-                    'Drawdown'
-                ),
-                row_heights=[0.4, 0.15, 0.1, 0.15, 0.1]
-            )
-            
-            # 1. Candlestick chart with volume
-            fig.add_trace(
-                go.Candlestick(
-                    x=data.index,
-                    open=data['Open'],
-                    high=data['High'],
-                    low=data['Low'],
-                    close=data['Close'],
-                    name='Price',
-                    showlegend=False
-                ),
-                row=1, col=1
-            )
-            
-            # Add volume bars
-            colors = ['red' if close < open else 'green' 
-                     for close, open in zip(data['Close'], data['Open'])]
-            fig.add_trace(
-                go.Bar(
-                    x=data.index,
-                    y=data['Volume'],
-                    name='Volume',
-                    marker_color=colors,
-                    opacity=0.3,
-                    showlegend=False
-                ),
-                row=1, col=1
-            )
-            
-            # Add buy/sell markers
-            buy_dates = data[data['Signal'] == 'BUY'].index
-            sell_dates = data[data['Signal'].str.contains('SELL', na=False)].index
-            
-            if len(buy_dates) > 0:
-                fig.add_trace(
-                    go.Scatter(
-                        x=buy_dates,
-                        y=data.loc[buy_dates, 'Low'] * 0.98,
-                        mode='markers',
-                        name='BUY',
-                        marker=dict(symbol='triangle-up', size=12, color='green'),
-                        hovertemplate='BUY<extra></extra>'
-                    ),
-                    row=1, col=1
-                )
-            
-            if len(sell_dates) > 0:
-                fig.add_trace(
-                    go.Scatter(
-                        x=sell_dates,
-                        y=data.loc[sell_dates, 'High'] * 1.02,
-                        mode='markers',
-                        name='SELL',
-                        marker=dict(symbol='triangle-down', size=12, color='red'),
-                        hovertemplate='SELL<extra></extra>'
-                    ),
-                    row=1, col=1
-                )
-            
-            # 2. RSI and CCI
-            fig.add_trace(
-                go.Scatter(x=data.index, y=data['RSI'], name='RSI', line=dict(color='blue')),
-                row=2, col=1
-            )
-            
-            fig.add_trace(
-                go.Scatter(x=data.index, y=data['CCI'], name='CCI', line=dict(color='orange')),
-                row=2, col=1
-            )
-            
-            # Add RSI levels
-            fig.add_hline(y=buy_rsi, line_dash="dash", line_color="green", opacity=0.7, 
-                         annotation_text=f"BUY RSI > {buy_rsi}", row=2, col=1)
-            fig.add_hline(y=sell_rsi, line_dash="dash", line_color="red", opacity=0.7,
-                         annotation_text=f"SELL RSI < {sell_rsi}", row=2, col=1)
-            fig.add_hline(y=50, line_dash="dot", line_color="gray", opacity=0.3, row=2, col=1)
-            
-            # Add CCI levels
-            fig.add_hline(y=buy_cci, line_dash="dash", line_color="green", opacity=0.5,
-                         annotation_text=f"BUY CCI > {buy_cci}", row=2, col=1)
-            fig.add_hline(y=sell_cci, line_dash="dash", line_color="red", opacity=0.5,
-                         annotation_text=f"SELL CCI < {sell_cci}", row=2, col=1)
-            fig.add_hline(y=0, line_dash="dot", line_color="gray", opacity=0.3, row=2, col=1)
-            
-            # 3. ADX
-            fig.add_trace(
-                go.Scatter(x=data.index, y=data['ADX'], name='ADX', line=dict(color='purple')),
-                row=3, col=1
-            )
-            fig.add_hline(y=25, line_dash="dash", line_color="orange", opacity=0.7,
-                         annotation_text="Strong Trend > 25", row=3, col=1)
-            
-            # 4. MACD
-            fig.add_trace(
-                go.Scatter(x=data.index, y=data['MACD'], name='MACD', line=dict(color='blue')),
-                row=4, col=1
-            )
-            fig.add_trace(
-                go.Scatter(x=data.index, y=data['MACD_signal'], name='Signal', line=dict(color='red')),
-                row=4, col=1
-            )
-            
-            # MACD histogram
-            colors_hist = ['green' if val >= 0 else 'red' for val in data['MACD_hist']]
-            fig.add_trace(
-                go.Bar(
-                    x=data.index,
-                    y=data['MACD_hist'],
-                    name='MACD Hist',
-                    marker_color=colors_hist,
-                    opacity=0.5,
-                    showlegend=False
-                ),
-                row=4, col=1
-            )
-            fig.add_hline(y=0, line_color="gray", opacity=0.3, row=4, col=1)
-            
-            # 5. Drawdown
-            fig.add_trace(
-                go.Scatter(x=data.index, y=data['Drawdown'], name='Drawdown', 
-                          line=dict(color='red'), fill='tozeroy'),
-                row=5, col=1
-            )
-            fig.add_hline(y=0, line_color="gray", opacity=0.3, row=5, col=1)
-            
-            # Update layout
-            fig.update_layout(
-                title=f'{symbol} Technical Analysis - Buy: RSI>{buy_rsi} & CCI>{buy_cci}, Sell: RSI<{sell_rsi} & CCI<{sell_cci}',
-                height=1000,
-                showlegend=True,
-                hovermode='x unified',
-                template='plotly_white'
-            )
-            
-            # Update y-axis labels
-            fig.update_yaxes(title_text="Price", row=1, col=1)
-            fig.update_yaxes(title_text="RSI/CCI", row=2, col=1)
-            fig.update_yaxes(title_text="ADX", row=3, col=1)
-            fig.update_yaxes(title_text="MACD", row=4, col=1)
-            fig.update_yaxes(title_text="Drawdown %", row=5, col=1)
-            
-            # Remove rangeslider from all except bottom plot
-            fig.update_xaxes(rangeslider_visible=False)
-            fig.update_xaxes(rangeslider_visible=True, row=5, col=1)
-            
-            return fig
-            
-        except Exception as e:
-            st.error(f"Error creating chart: {str(e)}")
-            # Return empty figure
-            return go.Figure()
-    
-    # ================== MAIN APP ==================
-    
-    def main_app():
-        """
-        Main Streamlit application
-        """
-        st.markdown('<h1 class="main-header">📈 Technical Analysis Dashboard</h1>', unsafe_allow_html=True)
-        
-        # Sidebar for inputs
-        with st.sidebar:
-            st.markdown('<h2 class="sub-header">⚙️ Parameters</h2>', unsafe_allow_html=True)
-            
-            # Stock selection
-            st.markdown("### Stock Selection")
-            symbol = st.text_input("Stock Symbol", value="GOOGL").upper()
-            
-            # Period selection
-            st.markdown("### Data Period")
-            period_options = {
-                "1 Year": "1y",
-                "2 Years": "2y",
-                "3 Years": "3y",
-                "5 Years": "5y",
-                "10 Years": "10y",
-                "Max": "max"
-            }
-            selected_period = st.selectbox(
-                "Select Period",
-                list(period_options.keys()),
-                index=0
-            )
-            period = period_options[selected_period]
-            
-            # RSI Parameters
-            st.markdown("### RSI Parameters")
-            buy_rsi = st.slider("BUY when RSI >", 50, 80, 60)
-            sell_rsi = st.slider("SELL when RSI <", 20, 50, 30)
-            
-            # CCI Parameters
-            st.markdown("### CCI Parameters")
-            buy_cci = st.slider("BUY when CCI >", -100, 100, 0)
-            sell_cci = st.slider("SELL when CCI <", -100, 100, 0)
-            
-            # Indicator Parameters
-            st.markdown("### Indicator Settings")
-            rsi_period = st.slider("RSI Period", 5, 30, 14)
-            cci_period = st.slider("CCI Period", 5, 30, 20)
-            adx_period = st.slider("ADX Period", 5, 30, 14)
-            
-            macd_fast = st.slider("MACD Fast Period", 5, 20, 12)
-            macd_slow = st.slider("MACD Slow Period", 15, 35, 26)
-            macd_signal = st.slider("MACD Signal Period", 5, 15, 9)
-            
-            # Action buttons
-            st.markdown("---")
-            analyze_button = st.button("🚀 Analyze", type="primary", use_container_width=True)
-            
-            # Debug mode
-            debug_mode = st.checkbox("Debug Mode", value=False)
-            
-            st.markdown("---")
-            
-            # Information
-            with st.expander("ℹ️ About this Dashboard"):
-                st.write("""
-                **Indicators Used:**
-                - **RSI (Relative Strength Index)**: Momentum oscillator (0-100)
-                - **CCI (Commodity Channel Index)**: Trend oscillator (-100 to +100)
-                - **ADX (Average Directional Index)**: Trend strength (0-100)
-                - **MACD**: Trend-following momentum indicator
-                
-                **Trading Strategy:**
-                - **BUY** when RSI > [Buy RSI] AND CCI > [Buy CCI]
-                - **SELL** when RSI < [Sell RSI] AND CCI < [Sell CCI]
-                
-                **Note:** All indicators calculated using pandas/numpy only - no external libraries required!
-                """)
-        
-        # Main content area
-        if analyze_button:
-            try:
-                with st.spinner(f"Fetching {selected_period} of data for {symbol}..."):
-                    # Download data with error handling
-                    try:
-                        data = yf.download(symbol, period=period, progress=False)
-                        if data.empty:
-                            st.error(f"No data found for {symbol}. Please check the symbol.")
-                            return
-                        st.success(f"Successfully downloaded {len(data)} data points for {symbol}")
-                    except Exception as e:
-                        st.error(f"Error downloading data: {str(e)}")
-                        st.info("Please check your internet connection and try again.")
-                        return
-                    
-                    # Display raw data in debug mode
-                    if debug_mode:
-                        with st.expander("📊 Raw Data Preview"):
-                            st.dataframe(data.head())
-                            st.write(f"Data shape: {data.shape}")
-                            st.write(f"Data columns: {list(data.columns)}")
-                    
-                    # Calculate indicators
-                    with st.spinner("Calculating technical indicators..."):
-                        try:
-                            # Calculate indicators
-                            data['RSI'] = calculate_rsi_pandas(data['Close'], period=rsi_period)
-                            data['CCI'] = calculate_cci_pandas(data['High'], data['Low'], data['Close'], period=cci_period)
-                            data['ADX'] = calculate_adx_pandas(data['High'], data['Low'], data['Close'], period=adx_period)
-                            
-                            macd, signal, hist = calculate_macd_pandas(
-                                data['Close'], 
-                                fast=macd_fast, 
-                                slow=macd_slow, 
-                                signal=macd_signal
-                            )
-                            data['MACD'] = macd
-                            data['MACD_signal'] = signal
-                            data['MACD_hist'] = hist
-                            
-                            data['Drawdown'] = calculate_drawdown_pandas(data['Close'])
-                            
-                            st.success("Indicators calculated successfully!")
-                        except Exception as e:
-                            st.error(f"Error calculating indicators: {str(e)}")
-                            # Show full traceback
-                            st.code(traceback.format_exc(), language='python')
-                            return
-                    
-                    # Calculate trading signals
-                    with st.spinner("Calculating trading signals..."):
-                        try:
-                            data_with_signals, trades = calculate_position_metrics(
-                                data, buy_rsi, buy_cci, sell_rsi, sell_cci
-                            )
-                            st.success(f"Found {len(trades)} trades!")
-                        except Exception as e:
-                            st.error(f"Error calculating trades: {str(e)}")
-                            st.code(traceback.format_exc(), language='python')
-                            return
-                    
-                    # Display metrics
-                    col1, col2, col3, col4 = st.columns(4)
-                    
-                    with col1:
-                        current_price = data['Close'].iloc[-1]
-                        price_change = ((current_price - data['Close'].iloc[0]) / data['Close'].iloc[0]) * 100
-                        change_color = "positive" if price_change >= 0 else "negative"
-                        st.metric(
-                            "Current Price",
-                            f"${current_price:.2f}",
-                            f"{price_change:.2f}%",
-                            delta_color="normal"
-                        )
-                    
-                    with col2:
-                        total_trades = len(trades)
-                        winning_trades = len([t for t in trades if t['P_L'] > 0])
-                        win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
-                        win_color = "positive" if win_rate > 50 else "negative"
-                        st.metric("Win Rate", 
-                                 f"{win_rate:.1f}%", 
-                                 f"{winning_trades}/{total_trades}")
-                    
-                    with col3:
-                        if total_trades > 0:
-                            total_pnl = sum(trade['P_L'] for trade in trades)
-                            avg_pnl = total_pnl / total_trades
-                            pnl_color = "positive" if avg_pnl > 0 else "negative"
-                            st.metric("Avg P&L per Trade", 
-                                     f"{avg_pnl:.2f}%",
-                                     delta_color="normal")
-                    
-                    with col4:
-                        if total_trades > 0:
-                            avg_holding_days = np.mean([trade['Holding_Days'] for trade in trades])
-                            st.metric("Avg Holding Days", f"{avg_holding_days:.1f}")
-                    
-                    # Create and display chart
-                    st.markdown('<h2 class="sub-header">📊 Interactive Chart</h2>', unsafe_allow_html=True)
-                    try:
-                        fig = create_chart(data_with_signals, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
-                        st.plotly_chart(fig, use_container_width=True)
-                    except Exception as e:
-                        st.error(f"Error displaying chart: {str(e)}")
-                        st.code(traceback.format_exc(), language='python')
-                    
-                    # Trade Details
-                    st.markdown('<h2 class="sub-header">📋 Trade History</h2>', unsafe_allow_html=True)
-                    
-                    if trades:
-                        trades_df = pd.DataFrame(trades)
-                        
-                        # Format for display
-                        display_df = trades_df.copy()
-                        display_df['Entry_Date'] = display_df['Entry_Date'].dt.strftime('%Y-%m-%d')
-                        display_df['Exit_Date'] = display_df['Exit_Date'].dt.strftime('%Y-%m-%d')
-                        display_df['Entry_Price'] = display_df['Entry_Price'].apply(lambda x: f"${x:.2f}")
-                        display_df['Exit_Price'] = display_df['Exit_Price'].apply(lambda x: f"${x:.2f}")
-                        display_df['P_L'] = display_df['P_L'].apply(lambda x: f"{x:+.2f}%")
-                        
-                        # Display with color coding
-                        st.dataframe(
-                            display_df,
-                            column_config={
-                                "P_L": st.column_config.TextColumn(
-                                    "P&L",
-                                    help="Profit/Loss percentage",
-                                )
-                            },
-                            use_container_width=True
-                        )
-                        
-                        # Performance summary
-                        st.markdown("#### 📈 Performance Summary")
-                        perf_col1, perf_col2, perf_col3, perf_col4 = st.columns(4)
-                        
-                        with perf_col1:
-                            best_trade = trades_df['P_L'].max()
-                            st.metric("Best Trade", f"{best_trade:+.2f}%")
-                        
-                        with perf_col2:
-                            worst_trade = trades_df['P_L'].min()
-                            st.metric("Worst Trade", f"{worst_trade:+.2f}%")
-                        
-                        with perf_col3:
-                            total_return = trades_df['P_L'].sum()
-                            st.metric("Total Return", f"{total_return:+.2f}%")
-                        
-                        with perf_col4:
-                            if len(trades_df) > 1:
-                                returns_std = trades_df['P_L'].std()
-                                if returns_std != 0:
-                                    sharpe_ratio = (trades_df['P_L'].mean() / returns_std) * np.sqrt(252/avg_holding_days)
-                                    st.metric("Sharpe Ratio", f"{sharpe_ratio:.2f}")
-                                else:
-                                    st.metric("Sharpe Ratio", "N/A")
-                            else:
-                                st.metric("Sharpe Ratio", "N/A")
-                    else:
-                        st.info("No trades executed with the current parameters.")
-                    
-                    # Raw Data and Download
-                    with st.expander("📁 View Data & Export"):
-                        col1, col2 = st.columns([3, 1])
-                        
-                        with col1:
-                            st.dataframe(data_with_signals.tail(20), use_container_width=True)
-                        
-                        with col2:
-                            csv = data_with_signals.to_csv().encode('utf-8')
-                            st.download_button(
-                                label="📥 Download CSV",
-                                data=csv,
-                                file_name=f"{symbol}_analysis_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv",
-                                mime="text/csv",
-                                use_container_width=True
-                            )
-                
-            except Exception as e:
-                st.error(f"An unexpected error occurred: {str(e)}")
-                st.code(traceback.format_exc(), language='python')
-                st.info("Please try again or contact support if the issue persists.")
-        
-        else:
-            # Welcome message
-            st.markdown("""
-            <div style='text-align: center; padding: 3rem;'>
-                <h2>Welcome to the Technical Analysis Dashboard! 🚀</h2>
-                <p style='font-size: 1.2rem;'>
-                    This dashboard uses only pandas and numpy for all calculations - no TA-Lib required!
-                </p>
-                <div style='margin-top: 2rem;'>
-                    <h4>🎯 Popular Symbols to Try:</h4>
-                    <div style='display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;'>
-                        <div class='metric-card'>AAPL</div>
-                        <div class='metric-card'>MSFT</div>
-                        <div class='metric-card'>GOOGL</div>
-                        <div class='metric-card'>TSLA</div>
-                        <div class='metric-card'>AMZN</div>
-                        <div class='metric-card'>NFLX</div>
-                    </div>
-                </div>
-                <div style='margin-top: 2rem;'>
-                    <h4>📊 Available Indicators (pandas/numpy only):</h4>
-                    <div style='display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem;'>
-                        <div class='metric-card'>RSI</div>
-                        <div class='metric-card'>CCI</div>
-                        <div class='metric-card'>ADX</div>
-                        <div class='metric-card'>MACD</div>
-                        <div class='metric-card'>Drawdown</div>
-                    </div>
-                </div>
-            </div>
-            """, unsafe_allow_html=True)
-    
-    # Run the main app
-    main_app()
-
-except Exception as e:
-    # Global error handling
-    st.error("A critical error occurred in the application")
-    st.code(traceback.format_exc(), language='python')
-    st.info("""
-    **Common Solutions:**
-    1. Check your internet connection
-    2. Make sure all packages are installed
-    3. Try a different stock symbol
-    4. Restart the application
-    """)
+    st.markdown("</div></div>", unsafe_allow_html=True)
