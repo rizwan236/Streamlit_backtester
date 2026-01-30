@@ -6,7 +6,10 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 import traceback
-from bokeh.embed import components
+import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
+from mplfinance.original_flavor import candlestick_ohlc
+
 
 # Page config
 st.set_page_config(page_title="Tech Analysis", layout="wide", initial_sidebar_state="expanded")
@@ -159,109 +162,96 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
 
 # Chart creation
 def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
-    """Simplified Bokeh chart for Streamlit integration"""
+    fig, axes = plt.subplots(6, 1, figsize=(16, 14), sharex=True, 
+                            gridspec_kw={'height_ratios': [3, 1, 1, 1, 1, 1], 'hspace': 0.1})
     
-    from bokeh.plotting import figure
-    from bokeh.models import ColumnDataSource, HoverTool
-    from bokeh.layouts import column
-    from bokeh.palettes import Category10
-    import pandas as pd
+    # 1. Price and Volume
+    ax1 = axes[0]
+    ax1v = ax1.twinx()
     
-    # Prepare data
-    df = df.copy()
-    df.index = pd.to_datetime(df.index)
-    source = ColumnDataSource(df.reset_index())
+    # Prepare candlestick data
+    df_plot = df.copy()
+    df_plot['Date_num'] = mdates.date2num(df_plot.index.to_pydatetime())
+    ohlc = df_plot[['Date_num', 'Open', 'High', 'Low', 'Close']].values
     
-    # Create charts
-    charts = []
+    # Plot candlestick
+    candlestick_ohlc(ax1, ohlc, width=0.6, colorup='g', colordown='r', alpha=0.8)
     
-    # 1. Price chart
-    p1 = figure(x_axis_type="datetime", height=300, width=1000,
-                title=f"{symbol} - Price Chart", tools="pan,wheel_zoom,reset")
-    
-    # Candlestick
-    inc = df['Close'] > df['Open']
-    dec = df['Close'] <= df['Open']
-    
-    inc_source = ColumnDataSource(df[inc].reset_index())
-    dec_source = ColumnDataSource(df[dec].reset_index())
-    
-    # Price line
-    p1.line(x='index', y='Close', source=source, 
-            line_width=2, color='navy', alpha=0.8)
-    
-    # Buy/Sell markers
+    # Add signals
     buy_signals = df[df['Signal'] == 'BUY']
     sell_signals = df[df['Signal'].str.contains('SELL', na=False)]
     
-    if len(buy_signals) > 0:
-        buy_source = ColumnDataSource(buy_signals.reset_index())
-        p1.triangle(x='index', y='Low', size=10, 
-                   color="green", alpha=0.7, source=buy_source)
+    if not buy_signals.empty:
+        ax1.scatter(buy_signals.index, buy_signals['Low'] * 0.99, 
+                   color='green', marker='^', s=100, label='BUY', zorder=5)
+    if not sell_signals.empty:
+        ax1.scatter(sell_signals.index, sell_signals['High'] * 1.01,
+                   color='red', marker='v', s=100, label='SELL', zorder=5)
     
-    if len(sell_signals) > 0:
-        sell_source = ColumnDataSource(sell_signals.reset_index())
-        p1.inverted_triangle(x='index', y='High', size=10,
-                            color="red", alpha=0.7, source=sell_source)
+    # Plot volume
+    colors = ['r' if close < open else 'g' for close, open in zip(df['Close'], df['Open'])]
+    ax1v.bar(df.index, df['Volume'], color=colors, alpha=0.3, width=0.6)
+    ax1v.set_ylabel('Volume', color='gray')
+    ax1v.tick_params(axis='y', labelcolor='gray')
     
-    p1.add_tools(HoverTool(
-        tooltips=[("Date", "@index{%F}"), ("Close", "@Close{$0,0.00}")],
-        formatters={'@index': 'datetime'}
-    ))
+    ax1.set_ylabel('Price ($)')
+    ax1.set_title(f'{symbol} - Technical Analysis', fontsize=14, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend(loc='upper left')
     
-    # 2. RSI chart
-    p2 = figure(x_axis_type="datetime", height=150, width=1000,
-                title="RSI", x_range=p1.x_range)
+    # 2. RSI
+    axes[1].plot(df.index, df['RSI'], 'b-', linewidth=1.5)
+    axes[1].axhline(y=buy_rsi, color='g', linestyle='--', alpha=0.7)
+    axes[1].axhline(y=sell_rsi, color='r', linestyle='--', alpha=0.7)
+    axes[1].fill_between(df.index, 70, 100, alpha=0.1, color='r')
+    axes[1].fill_between(df.index, 0, 30, alpha=0.1, color='g')
+    axes[1].set_ylabel('RSI')
+    axes[1].set_ylim(0, 100)
+    axes[1].grid(True, alpha=0.3)
     
-    p2.line(x='index', y='RSI', source=source, 
-            line_width=2, color=Category10[3][0])
+    # 3. CCI
+    axes[2].plot(df.index, df['CCI'], 'orange', linewidth=1.5)
+    axes[2].axhline(y=buy_cci, color='g', linestyle='--', alpha=0.7)
+    axes[2].axhline(y=sell_cci, color='r', linestyle='--', alpha=0.7)
+    axes[2].fill_between(df.index, 100, 200, alpha=0.1, color='r')
+    axes[2].fill_between(df.index, -200, -100, alpha=0.1, color='g')
+    axes[2].set_ylabel('CCI')
+    axes[2].grid(True, alpha=0.3)
     
-    # RSI levels
-    p2.line(x='index', y=buy_rsi, source=source, 
-            line_dash='dashed', color='green')
-    p2.line(x='index', y=sell_rsi, source=source, 
-            line_dash='dashed', color='red')
-    p2.line(x='index', y=50, source=source, 
-            line_dash='dotted', color='gray', alpha=0.5)
+    # 4. MACD
+    axes[3].plot(df.index, df['MACD'], 'b-', linewidth=1.5, label='MACD')
+    axes[3].plot(df.index, df['MACD_signal'], 'r-', linewidth=1.5, label='Signal')
+    colors_macd = ['g' if val >= 0 else 'r' for val in df['MACD_hist']]
+    axes[3].bar(df.index, df['MACD_hist'], color=colors_macd, alpha=0.5, width=0.6)
+    axes[3].set_ylabel('MACD')
+    axes[3].grid(True, alpha=0.3)
+    axes[3].legend(loc='upper left', fontsize=8)
     
-    p2.y_range.start = 0
-    p2.y_range.end = 100
+    # 5. ADX
+    axes[4].plot(df.index, df['ADX'], 'purple', linewidth=1.5)
+    axes[4].axhline(y=25, color='orange', linestyle='--', alpha=0.7)
+    axes[4].set_ylabel('ADX')
+    axes[4].set_ylim(0, 100)
+    axes[4].grid(True, alpha=0.3)
     
-    # 3. CCI chart
-    p3 = figure(x_axis_type="datetime", height=150, width=1000,
-                title="CCI", x_range=p1.x_range)
+    # 6. Drawdown
+    axes[5].fill_between(df.index, df['Drawdown'], 0, color='r', alpha=0.3)
+    axes[5].set_ylabel('Drawdown %')
+    axes[5].set_xlabel('Date')
+    axes[5].grid(True, alpha=0.3)
     
-    p3.line(x='index', y='CCI', source=source, 
-            line_width=2, color=Category10[3][1])
+    # Format x-axis
+    axes[5].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    plt.setp(axes[5].xaxis.get_majorticklabels(), rotation=45, ha='right')
     
-    # CCI levels
-    p3.line(x='index', y=buy_cci, source=source, 
-            line_dash='dashed', color='green')
-    p3.line(x='index', y=sell_cci, source=source, 
-            line_dash='dashed', color='red')
-    p3.line(x='index', y=0, source=source, 
-            line_dash='dotted', color='gray', alpha=0.5)
+    # Add strategy info
+    fig.suptitle(
+        f'Strategy: BUY (RSI>{buy_rsi}, CCI>{buy_cci}) | SELL (RSI<{sell_rsi}, CCI<{sell_cci})',
+        fontsize=12, y=0.95
+    )
     
-    # 4. MACD chart
-    p4 = figure(x_axis_type="datetime", height=150, width=1000,
-                title="MACD", x_range=p1.x_range)
-    
-    p4.line(x='index', y='MACD', source=source, 
-            line_width=2, color='blue', legend_label="MACD")
-    p4.line(x='index', y='MACD_signal', source=source, 
-            line_width=2, color='red', legend_label="Signal")
-    
-    # Histogram
-    hist_source = ColumnDataSource(df.reset_index())
-    p4.vbar(x='index', top='MACD_hist', width=0.8, source=hist_source,
-            color='gray', alpha=0.5)
-    
-    p4.legend.location = "top_left"
-    
-    # Combine all charts
-    layout = column(p1, p2, p3, p4, sizing_mode="stretch_width")
-    
-    return layout
+    plt.tight_layout()
+    return fig
 
 # Main App
 st.title("📈 Technical Analysis Dashboard")
@@ -374,20 +364,17 @@ if analyze_button:
             else:
                 st.metric("Avg Days Held", "0")
         
-        # Create Bokeh chart
-        bokeh_chart = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
+        # Display chart
+        st.subheader("📊 Analysis Chart")
+        fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
+        st.pyplot(fig)
+        plt.close(fig)
         
-        # Convert to HTML
-        script, div = components(bokeh_chart)
-        
-        # Display in Streamlit
-        st.subheader("📈 Interactive Chart")
-        st.components.v1.html(f"""
-            <link rel="stylesheet" href="https://cdn.bokeh.org/bokeh/release/bokeh-3.3.0.min.css">
-            <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.3.0.min.js"></script>
-            {script}
-            {div}
-        """, height=800, scrolling=False)        
+        # Display trades
+        if trades:
+            st.subheader("📋 Trade History")
+            #trades_df = pd.DataFrame(trades)
+            #st.dataframe(trades_df, use_container_width=True)      
         
         # Display trades
         # Performance metrics - CORRECTED VERSION
