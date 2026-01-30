@@ -16,36 +16,53 @@ POPULAR_SYMBOLS = [
     "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"
 ]
 
-# Fixed Indicator calculations
 def calculate_rsi(close, period=14):
-    """Calculate RSI - fixed ewm issue"""
-    delta = close.diff()
+    """Calculate RSI - fixed for 2D array issue"""
+    # Ensure we have a 1D Series
+    close_series = pd.Series(close.values.flatten() if hasattr(close, 'values') else close)
+    
+    delta = close_series.diff()
     gain = np.where(delta > 0, delta, 0)
     loss = np.where(delta < 0, -delta, 0)
     
-    # Use simple moving average for initial values, then EMA
-    avg_gain = pd.Series(gain).rolling(window=period).mean()
-    avg_loss = pd.Series(loss).rolling(window=period).mean()
+    # Convert to 1D arrays
+    gain_1d = np.squeeze(gain) if gain.ndim > 1 else gain
+    loss_1d = np.squeeze(loss) if loss.ndim > 1 else loss
     
-    for i in range(period, len(gain)):
-        avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period-1) + gain[i]) / period
-        avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period-1) + loss[i]) / period
+    # Simple moving average for first period values
+    avg_gain = pd.Series(gain_1d).rolling(window=period).mean()
+    avg_loss = pd.Series(loss_1d).rolling(window=period).mean()
     
-    rs = avg_gain / avg_loss
+    # EMA calculation
+    for i in range(period, len(gain_1d)):
+        avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period-1) + gain_1d[i]) / period
+        avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period-1) + loss_1d[i]) / period
+    
+    rs = avg_gain / avg_loss.replace(0, np.nan)  # Avoid division by zero
     rsi = 100 - (100 / (1 + rs))
     return rsi.fillna(50)
 
 def calculate_cci(high, low, close, period=20):
     """Calculate CCI"""
-    tp = (high + low + close) / 3
-    sma = tp.rolling(window=period).mean()
-    mad = tp.rolling(window=period).apply(lambda x: np.abs(x - x.mean()).mean(), raw=False)
-    cci = (tp - sma) / (0.015 * mad)
+    # Ensure 1D arrays
+    high_1d = high.values.flatten() if hasattr(high, 'values') else high
+    low_1d = low.values.flatten() if hasattr(low, 'values') else low
+    close_1d = close.values.flatten() if hasattr(close, 'values') else close
+    
+    tp = (high_1d + low_1d + close_1d) / 3
+    sma = pd.Series(tp).rolling(window=period).mean()
+    
+    # Mean Deviation
+    def mean_deviation(x):
+        return np.abs(x - x.mean()).mean()
+    
+    mad = pd.Series(tp).rolling(window=period).apply(mean_deviation, raw=False)
+    cci = (pd.Series(tp) - sma) / (0.015 * mad.replace(0, np.nan))
     return cci.fillna(0)
 
 def calculate_macd(close, fast=12, slow=26, signal=9):
-    """Calculate MACD - fixed ewm issue"""
-    # Ensure we're working with 1D arrays
+    """Calculate MACD"""
+    # Ensure 1D Series
     close_series = pd.Series(close.values.flatten() if hasattr(close, 'values') else close)
     
     ema_fast = close_series.ewm(span=fast, adjust=False).mean()
@@ -57,28 +74,28 @@ def calculate_macd(close, fast=12, slow=26, signal=9):
 
 def calculate_adx(high, low, close, period=14):
     """Calculate ADX - simplified"""
+    # Ensure 1D arrays
+    high_series = pd.Series(high.values.flatten() if hasattr(high, 'values') else high)
+    low_series = pd.Series(low.values.flatten() if hasattr(low, 'values') else low)
+    close_series = pd.Series(close.values.flatten() if hasattr(close, 'values') else close)
+    
     # True Range
-    tr = pd.concat([
-        high - low,
-        abs(high - close.shift()),
-        abs(low - close.shift())
-    ], axis=1).max(axis=1)
+    tr1 = high_series - low_series
+    tr2 = abs(high_series - close_series.shift())
+    tr3 = abs(low_series - close_series.shift())
+    tr = pd.concat([tr1, tr2, tr3], axis=1).max(axis=1)
     
     # Directional Movement
-    up_move = high - high.shift()
-    down_move = low.shift() - low
+    up_move = high_series - high_series.shift()
+    down_move = low_series.shift() - low_series
     
     plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
     minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
     
-    # Smooth DMs
-    def smooth_series(series, period):
-        smoothed = pd.Series(series, index=high.index).rolling(window=period).mean()
-        return smoothed.fillna(0)
-    
-    plus_dm_smooth = smooth_series(plus_dm, period)
-    minus_dm_smooth = smooth_series(minus_dm, period)
-    tr_smooth = smooth_series(tr, period)
+    # Smooth using rolling mean
+    plus_dm_smooth = pd.Series(plus_dm).rolling(window=period).mean()
+    minus_dm_smooth = pd.Series(minus_dm).rolling(window=period).mean()
+    tr_smooth = tr.rolling(window=period).mean()
     
     # DI lines
     plus_di = 100 * plus_dm_smooth / tr_smooth.replace(0, np.nan)
@@ -86,14 +103,17 @@ def calculate_adx(high, low, close, period=14):
     
     # DX and ADX
     dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di).replace(0, np.nan)
-    adx = smooth_series(dx, period)
+    adx = dx.rolling(window=period).mean()
     return adx.fillna(0)
 
 def calculate_drawdown(prices):
     """Calculate drawdown"""
-    cummax = prices.cummax()
-    return ((prices - cummax) / cummax * 100).fillna(0)
-
+    # Ensure 1D Series
+    prices_series = pd.Series(prices.values.flatten() if hasattr(prices, 'values') else prices)
+    cummax = prices_series.cummax()
+    drawdown = ((prices_series - cummax) / cummax * 100).fillna(0)
+    return drawdown
+    
 # Trading logic
 def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
     """Calculate trading signals and performance"""
@@ -288,6 +308,8 @@ if analyze_button:
             if data.empty:
                 st.error(f"❌ No data found for {symbol}")
                 st.stop()
+
+
         
         # Calculate indicators
         with st.spinner("Calculating indicators..."):
