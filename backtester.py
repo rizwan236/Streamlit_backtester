@@ -2,14 +2,11 @@ import streamlit as st
 import yfinance as yf
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
 from datetime import datetime
 import traceback
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
-from mplfinance.original_flavor import candlestick_ohlc
-
+from matplotlib.patches import Rectangle
 
 # Page config
 st.set_page_config(page_title="Tech Analysis", layout="wide", initial_sidebar_state="expanded")
@@ -161,96 +158,170 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
     return df, trades
 
 # Chart creation
-def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
-    fig, axes = plt.subplots(6, 1, figsize=(16, 14), sharex=True, 
-                            gridspec_kw={'height_ratios': [3, 1, 1, 1, 1, 1], 'hspace': 0.1})
+def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):    
+    """
+    Create a static matplotlib chart with all indicators
+    """
+    # Create figure with subplots
+    fig, axes = plt.subplots(5, 1, figsize=(16, 14), 
+                             gridspec_kw={'height_ratios': [3, 2, 1, 2, 1]},
+                             sharex=True)
     
-    # 1. Price and Volume
+    # Remove some spines for cleaner look
+    for ax in axes:
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.grid(True, alpha=0.3, linestyle='--')
+    
+    # 1. Price & Volume Chart
     ax1 = axes[0]
-    ax1v = ax1.twinx()
+    ax2 = ax1.twinx()  # For volume
     
-    # Prepare candlestick data
-    df_plot = df.copy()
-    df_plot['Date_num'] = mdates.date2num(df_plot.index.to_pydatetime())
-    ohlc = df_plot[['Date_num', 'Open', 'High', 'Low', 'Close']].values
+    # Create candlestick bars
+    width = 0.7
+    width2 = 0.07
     
-    # Plot candlestick
-    candlestick_ohlc(ax1, ohlc, width=0.6, colorup='g', colordown='r', alpha=0.8)
+    # Define up and down days
+    up = df[df['Close'] >= df['Open']]
+    down = df[df['Close'] < df['Open']]
     
-    # Add signals
+    # Plot up candlesticks
+    ax1.bar(up.index, up['High'] - up['Low'], width2, bottom=up['Low'], 
+            color='green', alpha=0.8)
+    ax1.bar(up.index, up['Close'] - up['Open'], width, bottom=up['Open'], 
+            color='green', alpha=0.8)
+    
+    # Plot down candlesticks
+    ax1.bar(down.index, down['High'] - down['Low'], width2, bottom=down['Low'], 
+            color='red', alpha=0.8)
+    ax1.bar(down.index, down['Open'] - down['Close'], width, bottom=down['Close'], 
+            color='red', alpha=0.8)
+    
+    # Plot buy/sell signals
     buy_signals = df[df['Signal'] == 'BUY']
     sell_signals = df[df['Signal'].str.contains('SELL', na=False)]
     
     if not buy_signals.empty:
-        ax1.scatter(buy_signals.index, buy_signals['Low'] * 0.99, 
-                   color='green', marker='^', s=100, label='BUY', zorder=5)
+        ax1.scatter(buy_signals.index, buy_signals['Low'] * 0.98, 
+                   marker='^', color='green', s=100, label='BUY', zorder=5)
+    
     if not sell_signals.empty:
-        ax1.scatter(sell_signals.index, sell_signals['High'] * 1.01,
-                   color='red', marker='v', s=100, label='SELL', zorder=5)
+        ax1.scatter(sell_signals.index, sell_signals['High'] * 1.02, 
+                   marker='v', color='red', s=100, label='SELL', zorder=5)
     
     # Plot volume
-    colors = ['r' if close < open else 'g' for close, open in zip(df['Close'], df['Open'])]
-    ax1v.bar(df.index, df['Volume'], color=colors, alpha=0.3, width=0.6)
-    ax1v.set_ylabel('Volume', color='gray')
-    ax1v.tick_params(axis='y', labelcolor='gray')
+    colors = ['green' if close >= open_ else 'red' 
+              for close, open_ in zip(df['Close'], df['Open'])]
+    ax2.bar(df.index, df['Volume'], color=colors, alpha=0.3, width=1)
     
-    ax1.set_ylabel('Price ($)')
-    ax1.set_title(f'{symbol} - Technical Analysis', fontsize=14, fontweight='bold')
-    ax1.grid(True, alpha=0.3)
+    ax1.set_ylabel('Price ($)', fontweight='bold')
+    ax2.set_ylabel('Volume', fontweight='bold', rotation=270, labelpad=15)
+    ax1.set_title(f'{symbol} - Price Chart with Buy/Sell Signals', 
+                  fontsize=14, fontweight='bold', pad=20)
     ax1.legend(loc='upper left')
     
-    # 2. RSI
-    axes[1].plot(df.index, df['RSI'], 'b-', linewidth=1.5)
-    axes[1].axhline(y=buy_rsi, color='g', linestyle='--', alpha=0.7)
-    axes[1].axhline(y=sell_rsi, color='r', linestyle='--', alpha=0.7)
-    axes[1].fill_between(df.index, 70, 100, alpha=0.1, color='r')
-    axes[1].fill_between(df.index, 0, 30, alpha=0.1, color='g')
-    axes[1].set_ylabel('RSI')
-    axes[1].set_ylim(0, 100)
-    axes[1].grid(True, alpha=0.3)
+    # Format y-axis for price
+    ax1.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'${x:,.0f}'))
     
-    # 3. CCI
-    axes[2].plot(df.index, df['CCI'], 'orange', linewidth=1.5)
-    axes[2].axhline(y=buy_cci, color='g', linestyle='--', alpha=0.7)
-    axes[2].axhline(y=sell_cci, color='r', linestyle='--', alpha=0.7)
-    axes[2].fill_between(df.index, 100, 200, alpha=0.1, color='r')
-    axes[2].fill_between(df.index, -200, -100, alpha=0.1, color='g')
-    axes[2].set_ylabel('CCI')
-    axes[2].grid(True, alpha=0.3)
+    # 2. RSI & CCI Chart
+    ax3 = axes[1]
     
-    # 4. MACD
-    axes[3].plot(df.index, df['MACD'], 'b-', linewidth=1.5, label='MACD')
-    axes[3].plot(df.index, df['MACD_signal'], 'r-', linewidth=1.5, label='Signal')
-    colors_macd = ['g' if val >= 0 else 'r' for val in df['MACD_hist']]
-    axes[3].bar(df.index, df['MACD_hist'], color=colors_macd, alpha=0.5, width=0.6)
-    axes[3].set_ylabel('MACD')
-    axes[3].grid(True, alpha=0.3)
-    axes[3].legend(loc='upper left', fontsize=8)
+    # Plot RSI
+    ax3.plot(df.index, df['RSI'], color='blue', linewidth=1.5, label='RSI')
+    ax3.axhline(y=buy_rsi, color='green', linestyle='--', alpha=0.7, 
+                label=f'Buy Level ({buy_rsi})')
+    ax3.axhline(y=sell_rsi, color='red', linestyle='--', alpha=0.7, 
+                label=f'Sell Level ({sell_rsi})')
+    ax3.axhline(y=50, color='gray', linestyle=':', alpha=0.5)
     
-    # 5. ADX
-    axes[4].plot(df.index, df['ADX'], 'purple', linewidth=1.5)
-    axes[4].axhline(y=25, color='orange', linestyle='--', alpha=0.7)
-    axes[4].set_ylabel('ADX')
-    axes[4].set_ylim(0, 100)
-    axes[4].grid(True, alpha=0.3)
+    # Add CCI on secondary y-axis
+    ax3_cci = ax3.twinx()
+    ax3_cci.plot(df.index, df['CCI'], color='orange', linewidth=1.5, label='CCI')
+    ax3_cci.axhline(y=buy_cci, color='green', linestyle='--', alpha=0.5)
+    ax3_cci.axhline(y=sell_cci, color='red', linestyle='--', alpha=0.5)
+    ax3_cci.axhline(y=0, color='gray', linestyle=':', alpha=0.5)
     
-    # 6. Drawdown
-    axes[5].fill_between(df.index, df['Drawdown'], 0, color='r', alpha=0.3)
-    axes[5].set_ylabel('Drawdown %')
-    axes[5].set_xlabel('Date')
-    axes[5].grid(True, alpha=0.3)
+    # Color RSI regions
+    ax3.fill_between(df.index, buy_rsi, 100, alpha=0.1, color='green', 
+                     label='Overbought')
+    ax3.fill_between(df.index, 0, sell_rsi, alpha=0.1, color='red', 
+                     label='Oversold')
     
-    # Format x-axis
-    axes[5].xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    plt.setp(axes[5].xaxis.get_majorticklabels(), rotation=45, ha='right')
+    ax3.set_ylabel('RSI', fontweight='bold', color='blue')
+    ax3_cci.set_ylabel('CCI', fontweight='bold', color='orange', rotation=270, labelpad=15)
+    ax3.set_title('RSI & CCI Indicators', fontsize=12, fontweight='bold')
+    ax3.set_ylim(0, 100)
     
-    # Add strategy info
+    # Combine legends
+    lines1, labels1 = ax3.get_legend_handles_labels()
+    lines2, labels2 = ax3_cci.get_legend_handles_labels()
+    ax3.legend(lines1 + lines2, labels1 + labels2, loc='upper left', fontsize=8)
+    
+    # 3. ADX Chart
+    ax4 = axes[2]
+    ax4.plot(df.index, df['ADX'], color='purple', linewidth=1.5, label='ADX')
+    ax4.axhline(y=25, color='orange', linestyle='--', alpha=0.7, 
+                label='Strong Trend (25)')
+    
+    # Color code ADX levels
+    ax4.fill_between(df.index, df['ADX'], 0, where=(df['ADX'] >= 25), 
+                     alpha=0.3, color='orange', label='Strong Trend')
+    ax4.fill_between(df.index, df['ADX'], 0, where=(df['ADX'] < 25), 
+                     alpha=0.3, color='blue', label='Weak Trend')
+    
+    ax4.set_ylabel('ADX', fontweight='bold')
+    ax4.set_title('Average Directional Index (ADX)', fontsize=12, fontweight='bold')
+    ax4.legend(loc='upper left', fontsize=8)
+    ax4.set_ylim(0, max(df['ADX'].max() * 1.1, 50))
+    
+    # 4. MACD Chart
+    ax5 = axes[3]
+    
+    # Plot MACD and signal line
+    ax5.plot(df.index, df['MACD'], color='blue', linewidth=1.5, label='MACD')
+    ax5.plot(df.index, df['MACD_signal'], color='red', linewidth=1.5, 
+             label='Signal Line')
+    ax5.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
+    
+    # Plot histogram
+    colors_hist = ['green' if val >= 0 else 'red' for val in df['MACD_hist']]
+    ax5.bar(df.index, df['MACD_hist'], color=colors_hist, alpha=0.5, 
+            width=1, label='Histogram')
+    
+    ax5.set_ylabel('MACD', fontweight='bold')
+    ax5.set_title('MACD Indicator', fontsize=12, fontweight='bold')
+    ax5.legend(loc='upper left', fontsize=8)
+    
+    # 5. Drawdown Chart
+    ax6 = axes[4]
+    
+    # Plot drawdown with fill
+    ax6.fill_between(df.index, df['Drawdown'], 0, 
+                     where=(df['Drawdown'] < 0), 
+                     color='red', alpha=0.3, label='Drawdown')
+    ax6.plot(df.index, df['Drawdown'], color='red', linewidth=1.5)
+    ax6.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
+    
+    ax6.set_ylabel('Drawdown %', fontweight='bold')
+    ax6.set_title('Drawdown Analysis', fontsize=12, fontweight='bold')
+    ax6.legend(loc='upper left', fontsize=8)
+    
+    # Format x-axis for all plots
+    fig.autofmt_xdate(rotation=45)
+    
+    # Set x-axis format for last subplot
+    ax6.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    ax6.xaxis.set_major_locator(mdates.MonthLocator(interval=1))
+    
+    # Add overall title
     fig.suptitle(
-        f'Strategy: BUY (RSI>{buy_rsi}, CCI>{buy_cci}) | SELL (RSI<{sell_rsi}, CCI<{sell_cci})',
-        fontsize=12, y=0.95
+        f'{symbol} Technical Analysis | Buy: RSI>{buy_rsi} & CCI>{buy_cci} | Sell: RSI<{sell_rsi} & CCI<{sell_cci}',
+        fontsize=16, fontweight='bold', y=0.98
     )
     
-    plt.tight_layout()
+    # Adjust layout
+    plt.tight_layout(rect=[0, 0, 1, 0.96])
+    
     return fig
 
 # Main App
@@ -364,17 +435,25 @@ if analyze_button:
             else:
                 st.metric("Avg Days Held", "0")
         
-        # Display chart
-        st.subheader("📊 Analysis Chart")
-        fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
-        st.pyplot(fig)
-        plt.close(fig)
+        # In your analyze button section, replace the plotly chart with:
+        st.subheader("📈 Technical Analysis Chart")
         
-        # Display trades
-        if trades:
-            st.subheader("📋 Trade History")
-            #trades_df = pd.DataFrame(trades)
-            #st.dataframe(trades_df, use_container_width=True)      
+        # Create matplotlib figure
+        fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
+        
+        # Display in Streamlit
+        st.pyplot(fig)
+        
+        # Optionally, add a download button for the chart
+        col1, col2, col3 = st.columns([1, 1, 1])
+        with col1:
+            if st.button("📊 Save Chart as PNG"):
+                fig.savefig(f"{symbol}_chart_{datetime.now().strftime('%Y%m%d')}.png", 
+                           dpi=300, bbox_inches='tight')
+                st.success(f"Chart saved as {symbol}_chart.png")
+        
+        # Don't forget to close the figure to free memory
+        plt.close(fig)   
         
         # Display trades
         # Performance metrics - CORRECTED VERSION
