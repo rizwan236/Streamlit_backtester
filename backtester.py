@@ -328,31 +328,37 @@ if analyze_button:
         data, trades = calculate_trades(data, buy_rsi, buy_cci, sell_rsi, sell_cci)
         
         # Display metrics
+        # Display metrics - CORRECTED VERSION
         st.subheader("📊 Performance Summary")
         col1, col2, col3, col4 = st.columns(4)
         
         with col1:
-            price = data['Close'].iloc[-1]
-            change = ((price - data['Close'].iloc[0]) / data['Close'].iloc[0] * 100)
-            st.metric("Current Price", f"${price:.2f}", f"{change:+.2f}%")
+            # Get scalar values from the series
+            current_price = float(data['Close'].iloc[-1])
+            initial_price = float(data['Close'].iloc[0])
+            price_change = ((current_price - initial_price) / initial_price * 100)
+            st.metric("Current Price", f"${current_price:.2f}", f"{price_change:+.2f}%")
         
         with col2:
             total_trades = len(trades)
-            winning_trades = len([t for t in trades if float(t['P&L'].replace('%', '').replace('+', '')) > 0])
-            win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
-            st.metric("Win Rate", f"{win_rate:.1f}%", f"{winning_trades}/{total_trades}")
+            if trades:
+                winning_trades = len([t for t in trades if float(t['P&L'].strip('%').replace('+', '')) > 0])
+                win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+                st.metric("Win Rate", f"{win_rate:.1f}%", f"{winning_trades}/{total_trades}")
+            else:
+                st.metric("Win Rate", "0.0%", "0/0")
         
         with col3:
             if trades:
-                pnls = [float(t['P&L'].replace('%', '').replace('+', '')) for t in trades]
-                avg_pnl = np.mean(pnls)
+                pnls = [float(t['P&L'].strip('%').replace('+', '')) for t in trades]
+                avg_pnl = float(np.mean(pnls))
                 st.metric("Avg P&L", f"{avg_pnl:+.2f}%")
             else:
                 st.metric("Avg P&L", "0.00%")
         
         with col4:
             if trades:
-                avg_days = np.mean([t['Days'] for t in trades])
+                avg_days = float(np.mean([t['Days'] for t in trades]))
                 st.metric("Avg Days Held", f"{avg_days:.1f}")
             else:
                 st.metric("Avg Days Held", "0")
@@ -363,29 +369,40 @@ if analyze_button:
         st.plotly_chart(fig, use_container_width=True)
         
         # Display trades
+        # Performance metrics - CORRECTED VERSION
         if trades:
-            st.subheader("📋 Trade History")
-            trades_df = pd.DataFrame(trades)
-            st.dataframe(trades_df, use_container_width=True)
-            
-            # Performance metrics
             st.subheader("🎯 Performance Metrics")
             col1, col2, col3, col4 = st.columns(4)
             
+            # Convert P&L strings to floats
+            pnl_values = []
+            for t in trades:
+                pnl_str = t['P&L'].strip('%')
+                # Handle both positive and negative values
+                if pnl_str.startswith('+'):
+                    pnl_values.append(float(pnl_str[1:]))
+                elif pnl_str.startswith('-'):
+                    pnl_values.append(float(pnl_str))
+                else:
+                    pnl_values.append(float(pnl_str))
+            
             with col1:
-                pnls = [float(t['P&L'].replace('%', '').replace('+', '')) for t in trades]
-                st.metric("Best Trade", f"{max(pnls):+.2f}%")
+                best_trade = float(np.max(pnl_values))
+                st.metric("Best Trade", f"{best_trade:+.2f}%")
             
             with col2:
-                st.metric("Worst Trade", f"{min(pnls):+.2f}%")
+                worst_trade = float(np.min(pnl_values))
+                st.metric("Worst Trade", f"{worst_trade:+.2f}%")
             
             with col3:
-                st.metric("Total Return", f"{sum(pnls):+.2f}%")
+                total_return = float(np.sum(pnl_values))
+                st.metric("Total Return", f"{total_return:+.2f}%")
             
             with col4:
-                if len(pnls) > 1 and np.std(pnls) > 0:
-                    sharpe = (np.mean(pnls) / np.std(pnls)) * np.sqrt(252/avg_days)
-                    st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+                if len(pnl_values) > 1 and np.std(pnl_values) > 0:
+                    avg_days = float(np.mean([t['Days'] for t in trades]))
+                    sharpe = (np.mean(pnl_values) / np.std(pnl_values)) * np.sqrt(252/avg_days)
+                    st.metric("Sharpe Ratio", f"{float(sharpe):.2f}")
                 else:
                     st.metric("Sharpe Ratio", "N/A")
         
