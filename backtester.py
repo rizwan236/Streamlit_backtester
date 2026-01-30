@@ -366,7 +366,7 @@ if analyze_button:
         
         try:
             # Use the simple chart to avoid issues
-            fig = create_simple_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
+            fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
             
             # Display in Streamlit
             st.pyplot(fig)
