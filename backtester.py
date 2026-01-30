@@ -2,36 +2,7 @@ import streamlit as st
 import sys
 import traceback
 
-'''
-# Function to install missing packages
-def install_missing_packages():
-    required_packages = ['yfinance', 'pandas', 'numpy', 'plotly']
-    missing = []
-    
-    for package in required_packages:
-        try:
-            __import__(package)
-        except ImportError:
-            missing.append(package)
-    
-    return missing
 
-# Check for missing packages
-missing_packages = install_missing_packages()
-
-if missing_packages:
-    st.error(f"Missing packages: {', '.join(missing_packages)}")
-    if st.button("Install missing packages automatically"):
-        import subprocess
-        for package in missing_packages:
-            try:
-                subprocess.check_call([sys.executable, "-m", "pip", "install", package])
-                st.success(f"Installed {package}")
-            except Exception as e:
-                st.error(f"Failed to install {package}: {e}")
-        st.rerun()
-    st.stop()
-'''
 # Now import the packages
 try:
     import yfinance as yf
