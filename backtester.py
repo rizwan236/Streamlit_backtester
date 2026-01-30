@@ -5,144 +5,213 @@ import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
+import traceback
 
 # Page config
 st.set_page_config(page_title="Tech Analysis", layout="wide", initial_sidebar_state="expanded")
 
 # Popular symbols for autocomplete
 POPULAR_SYMBOLS = [
-    "AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX",
+    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX",
     "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"
 ]
 
-# Indicator calculations
+# Fixed Indicator calculations
 def calculate_rsi(close, period=14):
+    """Calculate RSI - fixed ewm issue"""
     delta = close.diff()
-    gain = delta.where(delta > 0, 0)
-    loss = -delta.where(delta < 0, 0)
-    avg_gain = gain.ewm(alpha=1/period, adjust=False).mean()
-    avg_loss = loss.ewm(alpha=1/period, adjust=False).mean()
+    gain = np.where(delta > 0, delta, 0)
+    loss = np.where(delta < 0, -delta, 0)
+    
+    # Use simple moving average for initial values, then EMA
+    avg_gain = pd.Series(gain).rolling(window=period).mean()
+    avg_loss = pd.Series(loss).rolling(window=period).mean()
+    
+    for i in range(period, len(gain)):
+        avg_gain.iloc[i] = (avg_gain.iloc[i-1] * (period-1) + gain[i]) / period
+        avg_loss.iloc[i] = (avg_loss.iloc[i-1] * (period-1) + loss[i]) / period
+    
     rs = avg_gain / avg_loss
-    return 100 - (100 / (1 + rs)).fillna(50)
+    rsi = 100 - (100 / (1 + rs))
+    return rsi.fillna(50)
 
 def calculate_cci(high, low, close, period=20):
+    """Calculate CCI"""
     tp = (high + low + close) / 3
     sma = tp.rolling(window=period).mean()
     mad = tp.rolling(window=period).apply(lambda x: np.abs(x - x.mean()).mean(), raw=False)
-    return ((tp - sma) / (0.015 * mad)).fillna(0)
+    cci = (tp - sma) / (0.015 * mad)
+    return cci.fillna(0)
 
 def calculate_macd(close, fast=12, slow=26, signal=9):
-    ema_fast = close.ewm(span=fast, adjust=False).mean()
-    ema_slow = close.ewm(span=slow, adjust=False).mean()
+    """Calculate MACD - fixed ewm issue"""
+    # Ensure we're working with 1D arrays
+    close_series = pd.Series(close.values.flatten() if hasattr(close, 'values') else close)
+    
+    ema_fast = close_series.ewm(span=fast, adjust=False).mean()
+    ema_slow = close_series.ewm(span=slow, adjust=False).mean()
     macd = ema_fast - ema_slow
     signal_line = macd.ewm(span=signal, adjust=False).mean()
-    return macd, signal_line, macd - signal_line
+    histogram = macd - signal_line
+    return macd, signal_line, histogram
 
 def calculate_adx(high, low, close, period=14):
-    tr = pd.concat([high - low, 
-                   abs(high - close.shift()), 
-                   abs(low - close.shift())], axis=1).max(axis=1)
-    atr = tr.ewm(alpha=1/period, adjust=False).mean()
+    """Calculate ADX - simplified"""
+    # True Range
+    tr = pd.concat([
+        high - low,
+        abs(high - close.shift()),
+        abs(low - close.shift())
+    ], axis=1).max(axis=1)
     
+    # Directional Movement
     up_move = high - high.shift()
     down_move = low.shift() - low
-    pos_dm = pd.Series(np.where((up_move > down_move) & (up_move > 0), up_move, 0), index=high.index)
-    neg_dm = pd.Series(np.where((down_move > up_move) & (down_move > 0), down_move, 0), index=high.index)
     
-    pos_di = 100 * pos_dm.ewm(alpha=1/period, adjust=False).mean() / atr
-    neg_di = 100 * neg_dm.ewm(alpha=1/period, adjust=False).mean() / atr
-    dx = 100 * abs(pos_di - neg_di) / (pos_di + neg_di).replace(0, np.nan)
-    return dx.ewm(alpha=1/period, adjust=False).mean().fillna(0)
+    plus_dm = np.where((up_move > down_move) & (up_move > 0), up_move, 0)
+    minus_dm = np.where((down_move > up_move) & (down_move > 0), down_move, 0)
+    
+    # Smooth DMs
+    def smooth_series(series, period):
+        smoothed = pd.Series(series, index=high.index).rolling(window=period).mean()
+        return smoothed.fillna(0)
+    
+    plus_dm_smooth = smooth_series(plus_dm, period)
+    minus_dm_smooth = smooth_series(minus_dm, period)
+    tr_smooth = smooth_series(tr, period)
+    
+    # DI lines
+    plus_di = 100 * plus_dm_smooth / tr_smooth.replace(0, np.nan)
+    minus_di = 100 * minus_dm_smooth / tr_smooth.replace(0, np.nan)
+    
+    # DX and ADX
+    dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di).replace(0, np.nan)
+    adx = smooth_series(dx, period)
+    return adx.fillna(0)
 
 def calculate_drawdown(prices):
+    """Calculate drawdown"""
     cummax = prices.cummax()
-    return (prices - cummax) / cummax * 100
+    return ((prices - cummax) / cummax * 100).fillna(0)
 
 # Trading logic
 def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
+    """Calculate trading signals and performance"""
     df = df.copy()
     df['Signal'] = ''
     trades = []
     in_position, entry_price, entry_date = False, 0, None
     
     for i in range(1, len(df)):
-        date, close, rsi, cci = df.index[i], df['Close'].iloc[i], df['RSI'].iloc[i], df['CCI'].iloc[i]
+        date = df.index[i]
+        close = df['Close'].iloc[i]
+        rsi = df['RSI'].iloc[i]
+        cci = df['CCI'].iloc[i]
         
         if not in_position and rsi > buy_rsi and cci > buy_cci:
             in_position, entry_price, entry_date = True, close, date
             df.loc[date, 'Signal'] = 'BUY'
         elif in_position and rsi < sell_rsi and cci < sell_cci:
-            pnl = (close - entry_price) / entry_price * 100
+            pnl = ((close - entry_price) / entry_price * 100)
             holding = (date - entry_date).days
             df.loc[date, 'Signal'] = 'SELL'
             trades.append({
-                'Entry_Date': entry_date, 'Exit_Date': date,
-                'Entry_Price': entry_price, 'Exit_Price': close,
-                'P_L': pnl, 'Holding_Days': holding
+                'Entry': entry_date.date(), 'Exit': date.date(),
+                'Buy Price': f"${entry_price:.2f}", 'Sell Price': f"${close:.2f}",
+                'P&L': f"{pnl:+.2f}%", 'Days': holding
             })
             in_position = False
     
-    # Close open position at end
+    # Close any open position
     if in_position:
         date, close = df.index[-1], df['Close'].iloc[-1]
-        pnl = (close - entry_price) / entry_price * 100
+        pnl = ((close - entry_price) / entry_price * 100)
         holding = (date - entry_date).days
         df.loc[date, 'Signal'] = 'SELL (End)'
         trades.append({
-            'Entry_Date': entry_date, 'Exit_Date': date,
-            'Entry_Price': entry_price, 'Exit_Price': close,
-            'P_L': pnl, 'Holding_Days': holding
+            'Entry': entry_date.date(), 'Exit': date.date(),
+            'Buy Price': f"${entry_price:.2f}", 'Sell Price': f"${close:.2f}",
+            'P&L': f"{pnl:+.2f}%", 'Days': holding
         })
     
     return df, trades
 
 # Chart creation
 def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
+    """Create interactive chart"""
     fig = make_subplots(
         rows=5, cols=1,
         shared_xaxes=True,
         vertical_spacing=0.05,
-        subplot_titles=(f'{symbol}', 'RSI & CCI', 'ADX', 'MACD', 'Drawdown'),
+        subplot_titles=(f'{symbol} - Price & Volume', 'RSI & CCI', 'ADX', 'MACD', 'Drawdown'),
         row_heights=[0.4, 0.15, 0.1, 0.15, 0.1]
     )
     
-    # Price & Volume
+    # Candlestick
+    fig.add_trace(
+        go.Candlestick(x=df.index, open=df['Open'], high=df['High'], 
+                       low=df['Low'], close=df['Close'], name='Price'),
+        row=1, col=1
+    )
+    
+    # Volume
     colors = ['red' if close < open else 'green' for close, open in zip(df['Close'], df['Open'])]
-    fig.add_trace(go.Candlestick(x=df.index, open=df['Open'], high=df['High'], 
-                                 low=df['Low'], close=df['Close'], name='Price'), row=1, col=1)
-    fig.add_trace(go.Bar(x=df.index, y=df['Volume'], name='Volume', 
-                         marker_color=colors, opacity=0.3), row=1, col=1)
+    fig.add_trace(
+        go.Bar(x=df.index, y=df['Volume'], name='Volume', 
+               marker_color=colors, opacity=0.3),
+        row=1, col=1
+    )
     
     # Signals
-    for signal, color, symbol in [('BUY', 'green', 'triangle-up'), ('SELL', 'red', 'triangle-down')]:
-        dates = df[df['Signal'].str.contains(signal, na=False)].index
-        if len(dates) > 0:
-            y = df.loc[dates, 'Low'] * 0.98 if signal == 'BUY' else df.loc[dates, 'High'] * 1.02
-            fig.add_trace(go.Scatter(x=dates, y=y, mode='markers', name=signal,
-                                    marker=dict(symbol=symbol, size=12, color=color)), row=1, col=1)
+    buy_dates = df[df['Signal'] == 'BUY'].index
+    sell_dates = df[df['Signal'].str.contains('SELL', na=False)].index
+    
+    if len(buy_dates) > 0:
+        fig.add_trace(
+            go.Scatter(x=buy_dates, y=df.loc[buy_dates, 'Low'] * 0.98,
+                       mode='markers', name='BUY',
+                       marker=dict(symbol='triangle-up', size=12, color='green')),
+            row=1, col=1
+        )
+    
+    if len(sell_dates) > 0:
+        fig.add_trace(
+            go.Scatter(x=sell_dates, y=df.loc[sell_dates, 'High'] * 1.02,
+                       mode='markers', name='SELL',
+                       marker=dict(symbol='triangle-down', size=12, color='red')),
+            row=1, col=1
+        )
     
     # Indicators
     indicators = [
-        ('RSI', 'blue', 2), ('CCI', 'orange', 2),
-        ('ADX', 'purple', 3), ('MACD', 'blue', 4),
-        ('MACD_signal', 'red', 4), ('Drawdown', 'red', 5)
+        (df['RSI'], 'RSI', 'blue', 2),
+        (df['CCI'], 'CCI', 'orange', 2),
+        (df['ADX'], 'ADX', 'purple', 3),
+        (df['MACD'], 'MACD', 'blue', 4),
+        (df['MACD_signal'], 'Signal', 'red', 4),
+        (df['Drawdown'], 'Drawdown', 'red', 5)
     ]
     
-    for indicator, color, row in indicators:
-        fig.add_trace(go.Scatter(x=df.index, y=df[indicator], name=indicator,
-                                line=dict(color=color)), row=row, col=1)
+    for data, name, color, row in indicators:
+        fig.add_trace(
+            go.Scatter(x=df.index, y=data, name=name, line=dict(color=color)),
+            row=row, col=1
+        )
     
     # MACD Histogram
     colors_hist = ['green' if val >= 0 else 'red' for val in df['MACD_hist']]
-    fig.add_trace(go.Bar(x=df.index, y=df['MACD_hist'], marker_color=colors_hist,
-                        opacity=0.5, showlegend=False), row=4, col=1)
+    fig.add_trace(
+        go.Bar(x=df.index, y=df['MACD_hist'], marker_color=colors_hist,
+               opacity=0.5, showlegend=False, name='MACD Hist'),
+        row=4, col=1
+    )
     
-    # Levels
+    # Horizontal lines
     levels = [
-        (buy_rsi, 'green', f'BUY RSI>{buy_rsi}', 2),
-        (sell_rsi, 'red', f'SELL RSI<{sell_rsi}', 2),
-        (buy_cci, 'green', f'BUY CCI>{buy_cci}', 2),
-        (sell_cci, 'red', f'SELL CCI<{sell_cci}', 2),
+        (buy_rsi, 'green', f'Buy RSI > {buy_rsi}', 2),
+        (sell_rsi, 'red', f'Sell RSI < {sell_rsi}', 2),
+        (buy_cci, 'green', f'Buy CCI > {buy_cci}', 2),
+        (sell_cci, 'red', f'Sell CCI < {sell_cci}', 2),
         (25, 'orange', 'Strong Trend', 3),
         (0, 'gray', None, 4)
     ]
@@ -151,7 +220,13 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
         fig.add_hline(y=level, line_dash="dash", line_color=color, opacity=0.7,
                      annotation_text=text, row=row, col=1)
     
-    fig.update_layout(height=1000, showlegend=True, hovermode='x unified')
+    fig.update_layout(
+        height=900,
+        showlegend=True,
+        hovermode='x unified',
+        template='plotly_white'
+    )
+    
     fig.update_xaxes(rangeslider_visible=False)
     fig.update_xaxes(rangeslider_visible=True, row=5, col=1)
     
@@ -164,144 +239,180 @@ st.title("📈 Technical Analysis Dashboard")
 with st.sidebar:
     st.header("⚙️ Settings")
     
-    # Symbol with autocomplete dropdown
+    # Symbol selection
     selected_symbol = st.selectbox(
         "Stock Symbol",
         options=POPULAR_SYMBOLS,
-        index=POPULAR_SYMBOLS.index("GOOG") if "GOOG" in POPULAR_SYMBOLS else 0
+        index=POPULAR_SYMBOLS.index("GOOGL") if "GOOGL" in POPULAR_SYMBOLS else 0,
+        help="Select from popular symbols or enter custom below"
     )
     
-    # Also allow custom input
     custom_symbol = st.text_input("Or enter custom symbol", "")
-    symbol = custom_symbol.upper() if custom_symbol else selected_symbol
+    symbol = custom_symbol.upper() if custom_symbol.strip() else selected_symbol
     
     # Period
     period = st.selectbox("Period", ["1y", "2y", "3y", "5y", "10y", "max"], index=0)
     
     # Trading rules
-    st.subheader("Trading Rules")
-    buy_rsi = st.slider("Buy: RSI >", 50, 80, 60)
-    buy_cci = st.slider("Buy: CCI >", -100, 100, 0)
-    sell_rsi = st.slider("Sell: RSI <", 20, 50, 30)
-    sell_cci = st.slider("Sell: CCI <", -100, 100, 0)
-    
-    # Indicator settings
-    st.subheader("Indicator Periods")
+    st.subheader("📊 Trading Rules")
     col1, col2 = st.columns(2)
     with col1:
-        rsi_period = st.slider("RSI", 5, 30, 14)
-        cci_period = st.slider("CCI", 5, 30, 20)
+        buy_rsi = st.number_input("Buy RSI >", 50, 80, 60)
+        sell_rsi = st.number_input("Sell RSI <", 20, 50, 30)
     with col2:
-        adx_period = st.slider("ADX", 5, 30, 14)
-        macd_fast = st.slider("MACD Fast", 5, 20, 12)
+        buy_cci = st.number_input("Buy CCI >", -100, 100, 0)
+        sell_cci = st.number_input("Sell CCI <", -100, 100, 0)
     
-    col1, col2 = st.columns(2)
+    # Indicator periods
+    st.subheader("⚙️ Indicator Settings")
+    rsi_period = st.slider("RSI Period", 5, 30, 14, key='rsi')
+    cci_period = st.slider("CCI Period", 5, 30, 20, key='cci')
+    adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
+    
+    col1, col2, col3 = st.columns(3)
     with col1:
-        macd_slow = st.slider("MACD Slow", 15, 35, 26)
+        macd_fast = st.slider("MACD Fast", 5, 20, 12, key='fast')
     with col2:
-        macd_signal = st.slider("MACD Signal", 5, 15, 9)
+        macd_slow = st.slider("MACD Slow", 15, 35, 26, key='slow')
+    with col3:
+        macd_signal = st.slider("MACD Signal", 5, 15, 9, key='signal')
     
-    if st.button("🚀 Analyze", type="primary", use_container_width=True):
-        st.session_state.analyze = True
-    else:
-        st.session_state.analyze = False
+    analyze_button = st.button("🚀 Analyze", type="primary", use_container_width=True)
 
 # Main content
-if st.session_state.get('analyze', False):
+if analyze_button:
     try:
         # Download data
         with st.spinner(f"Fetching {symbol} data..."):
             data = yf.download(symbol, period=period, progress=False)
             if data.empty:
-                st.error(f"No data found for {symbol}")
+                st.error(f"❌ No data found for {symbol}")
                 st.stop()
         
         # Calculate indicators
-        data['RSI'] = calculate_rsi(data['Close'], rsi_period)
-        data['CCI'] = calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
-        data['ADX'] = calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
-        data['MACD'], data['MACD_signal'], data['MACD_hist'] = calculate_macd(
-            data['Close'], macd_fast, macd_slow, macd_signal
-        )
-        data['Drawdown'] = calculate_drawdown(data['Close'])
+        with st.spinner("Calculating indicators..."):
+            data['RSI'] = calculate_rsi(data['Close'], rsi_period)
+            data['CCI'] = calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
+            data['ADX'] = calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
+            
+            macd, signal, hist = calculate_macd(data['Close'], macd_fast, macd_slow, macd_signal)
+            data['MACD'] = macd.values
+            data['MACD_signal'] = signal.values
+            data['MACD_hist'] = hist.values
+            
+            data['Drawdown'] = calculate_drawdown(data['Close'])
         
         # Calculate trades
         data, trades = calculate_trades(data, buy_rsi, buy_cci, sell_rsi, sell_cci)
         
-        # Metrics
+        # Display metrics
+        st.subheader("📊 Performance Summary")
         col1, col2, col3, col4 = st.columns(4)
+        
         with col1:
             price = data['Close'].iloc[-1]
-            change = (price - data['Close'].iloc[0]) / data['Close'].iloc[0] * 100
+            change = ((price - data['Close'].iloc[0]) / data['Close'].iloc[0] * 100)
             st.metric("Current Price", f"${price:.2f}", f"{change:+.2f}%")
+        
         with col2:
-            win_rate = (len([t for t in trades if t['P_L'] > 0]) / len(trades) * 100) if trades else 0
-            st.metric("Win Rate", f"{win_rate:.1f}%", f"{len(trades)} trades")
+            total_trades = len(trades)
+            winning_trades = len([t for t in trades if float(t['P&L'].replace('%', '').replace('+', '')) > 0])
+            win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+            st.metric("Win Rate", f"{win_rate:.1f}%", f"{winning_trades}/{total_trades}")
+        
         with col3:
-            avg_pnl = np.mean([t['P_L'] for t in trades]) if trades else 0
-            st.metric("Avg P&L", f"{avg_pnl:+.2f}%")
+            if trades:
+                pnls = [float(t['P&L'].replace('%', '').replace('+', '')) for t in trades]
+                avg_pnl = np.mean(pnls)
+                st.metric("Avg P&L", f"{avg_pnl:+.2f}%")
+            else:
+                st.metric("Avg P&L", "0.00%")
+        
         with col4:
-            avg_days = np.mean([t['Holding_Days'] for t in trades]) if trades else 0
-            st.metric("Avg Days", f"{avg_days:.1f}")
+            if trades:
+                avg_days = np.mean([t['Days'] for t in trades])
+                st.metric("Avg Days Held", f"{avg_days:.1f}")
+            else:
+                st.metric("Avg Days Held", "0")
         
-        # Chart
-        st.plotly_chart(create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol), 
-                       use_container_width=True)
+        # Display chart
+        st.subheader("📈 Interactive Chart")
+        fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
+        st.plotly_chart(fig, use_container_width=True)
         
-        # Trade details
+        # Display trades
         if trades:
             st.subheader("📋 Trade History")
             trades_df = pd.DataFrame(trades)
+            st.dataframe(trades_df, use_container_width=True)
             
-            # Format for display
-            display_df = trades_df.copy()
-            display_df['Entry_Date'] = display_df['Entry_Date'].dt.strftime('%Y-%m-%d')
-            display_df['Exit_Date'] = display_df['Exit_Date'].dt.strftime('%Y-%m-%d')
-            display_df['Entry_Price'] = display_df['Entry_Price'].apply(lambda x: f"${x:.2f}")
-            display_df['Exit_Price'] = display_df['Exit_Price'].apply(lambda x: f"${x:.2f}")
-            display_df['P_L'] = display_df['P_L'].apply(lambda x: f"{x:+.2f}%")
-            
-            st.dataframe(display_df, use_container_width=True)
-            
-            # Performance
+            # Performance metrics
+            st.subheader("🎯 Performance Metrics")
             col1, col2, col3, col4 = st.columns(4)
+            
             with col1:
-                st.metric("Best Trade", f"{trades_df['P_L'].max():+.2f}%")
+                pnls = [float(t['P&L'].replace('%', '').replace('+', '')) for t in trades]
+                st.metric("Best Trade", f"{max(pnls):+.2f}%")
+            
             with col2:
-                st.metric("Worst Trade", f"{trades_df['P_L'].min():+.2f}%")
+                st.metric("Worst Trade", f"{min(pnls):+.2f}%")
+            
             with col3:
-                st.metric("Total Return", f"{trades_df['P_L'].sum():+.2f}%")
+                st.metric("Total Return", f"{sum(pnls):+.2f}%")
+            
             with col4:
-                sharpe = (trades_df['P_L'].mean() / trades_df['P_L'].std() * np.sqrt(252/avg_days)) if len(trades_df) > 1 and trades_df['P_L'].std() != 0 else 0
-                st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+                if len(pnls) > 1 and np.std(pnls) > 0:
+                    sharpe = (np.mean(pnls) / np.std(pnls)) * np.sqrt(252/avg_days)
+                    st.metric("Sharpe Ratio", f"{sharpe:.2f}")
+                else:
+                    st.metric("Sharpe Ratio", "N/A")
         
-        # Export
-        with st.expander("📊 Data Export"):
+        # Export data
+        with st.expander("📁 Export Data"):
             csv = data.to_csv().encode('utf-8')
             st.download_button(
                 label="📥 Download CSV",
                 data=csv,
-                file_name=f"{symbol}_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv"
+                file_name=f"{symbol}_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv",
+                use_container_width=True
             )
-            
+    
     except Exception as e:
-        st.error(f"Error: {str(e)}")
+        st.error(f"❌ Error: {str(e)}")
+        st.info("💡 Tip: Try a different stock symbol or check your internet connection")
+        # Optionally show more details
+        with st.expander("Show Traceback"):
+            st.code(traceback.format_exc())        
 
 else:
     # Welcome screen
     st.markdown("""
     <div style='text-align: center; padding: 2rem;'>
-        <h3>Welcome to Technical Analysis Dashboard</h3>
-        <p>Select a stock and parameters, then click Analyze</p>
-        <div style='display: flex; justify-content: center; gap: 1rem; flex-wrap: wrap; margin: 2rem 0;'>
+        <h3>📊 Technical Analysis Dashboard</h3>
+        <p>Analyze stocks with RSI, CCI, ADX, and MACD indicators</p>
+    </div>
     """, unsafe_allow_html=True)
     
+    st.markdown("### 🎯 Quick Start - Select a stock:")
     cols = st.columns(5)
-    for idx, sym in enumerate(POPULAR_SYMBOLS[:10]):
+    popular_subset = POPULAR_SYMBOLS[:10]  # Show first 10
+    
+    for idx, sym in enumerate(popular_subset):
         with cols[idx % 5]:
             if st.button(sym, use_container_width=True):
                 st.session_state.custom_symbol = sym
                 st.rerun()
     
-    st.markdown("</div></div>", unsafe_allow_html=True)
+    st.markdown("---")
+    st.markdown("""
+    ### 📈 How to Use:
+    1. **Select** a stock symbol from the dropdown or enter custom
+    2. **Set** your trading rules (RSI/CCI thresholds)
+    3. **Adjust** indicator periods if needed
+    4. **Click** "Analyze" to run the analysis
+    
+    ### 📊 Trading Strategy:
+    - **BUY** when RSI > [Buy RSI] AND CCI > [Buy CCI]
+    - **SELL** when RSI < [Sell RSI] AND CCI < [Sell CCI]
+    """)
