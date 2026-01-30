@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from datetime import datetime
 import traceback
+from bokeh.embed import components
 
 # Page config
 st.set_page_config(page_title="Tech Analysis", layout="wide", initial_sidebar_state="expanded")
@@ -158,99 +159,109 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
 
 # Chart creation
 def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
-    """Create interactive chart"""
-    fig = make_subplots(
-        rows=5, cols=1,
-        shared_xaxes=True,
-        vertical_spacing=0.05,
-        subplot_titles=(f'{symbol} - Price & Volume', 'RSI & CCI', 'ADX', 'MACD', 'Drawdown'),
-        row_heights=[0.4, 0.15, 0.1, 0.15, 0.1]
-    )
+    """Simplified Bokeh chart for Streamlit integration"""
+    
+    from bokeh.plotting import figure
+    from bokeh.models import ColumnDataSource, HoverTool
+    from bokeh.layouts import column
+    from bokeh.palettes import Category10
+    import pandas as pd
+    
+    # Prepare data
+    df = df.copy()
+    df.index = pd.to_datetime(df.index)
+    source = ColumnDataSource(df.reset_index())
+    
+    # Create charts
+    charts = []
+    
+    # 1. Price chart
+    p1 = figure(x_axis_type="datetime", height=300, width=1000,
+                title=f"{symbol} - Price Chart", tools="pan,wheel_zoom,reset")
     
     # Candlestick
-    fig.add_trace(
-        go.Candlestick(x=df.index, open=df['Open'], high=df['High'], 
-                       low=df['Low'], close=df['Close'], name='Price'),
-        row=1, col=1
-    )
+    inc = df['Close'] > df['Open']
+    dec = df['Close'] <= df['Open']
     
-    # Volume
-    colors = ['red' if close < open else 'green' for close, open in zip(df['Close'], df['Open'])]
-    fig.add_trace(
-        go.Bar(x=df.index, y=df['Volume'], name='Volume', 
-               marker_color=colors, opacity=0.3),
-        row=1, col=1
-    )
+    inc_source = ColumnDataSource(df[inc].reset_index())
+    dec_source = ColumnDataSource(df[dec].reset_index())
     
-    # Signals
-    buy_dates = df[df['Signal'] == 'BUY'].index
-    sell_dates = df[df['Signal'].str.contains('SELL', na=False)].index
+    # Price line
+    p1.line(x='index', y='Close', source=source, 
+            line_width=2, color='navy', alpha=0.8)
     
-    if len(buy_dates) > 0:
-        fig.add_trace(
-            go.Scatter(x=buy_dates, y=df.loc[buy_dates, 'Low'] * 0.98,
-                       mode='markers', name='BUY',
-                       marker=dict(symbol='triangle-up', size=12, color='green')),
-            row=1, col=1
-        )
+    # Buy/Sell markers
+    buy_signals = df[df['Signal'] == 'BUY']
+    sell_signals = df[df['Signal'].str.contains('SELL', na=False)]
     
-    if len(sell_dates) > 0:
-        fig.add_trace(
-            go.Scatter(x=sell_dates, y=df.loc[sell_dates, 'High'] * 1.02,
-                       mode='markers', name='SELL',
-                       marker=dict(symbol='triangle-down', size=12, color='red')),
-            row=1, col=1
-        )
+    if len(buy_signals) > 0:
+        buy_source = ColumnDataSource(buy_signals.reset_index())
+        p1.triangle(x='index', y='Low', size=10, 
+                   color="green", alpha=0.7, source=buy_source)
     
-    # Indicators
-    indicators = [
-        (df['RSI'], 'RSI', 'blue', 2),
-        (df['CCI'], 'CCI', 'orange', 2),
-        (df['ADX'], 'ADX', 'purple', 3),
-        (df['MACD'], 'MACD', 'blue', 4),
-        (df['MACD_signal'], 'Signal', 'red', 4),
-        (df['Drawdown'], 'Drawdown', 'red', 5)
-    ]
+    if len(sell_signals) > 0:
+        sell_source = ColumnDataSource(sell_signals.reset_index())
+        p1.inverted_triangle(x='index', y='High', size=10,
+                            color="red", alpha=0.7, source=sell_source)
     
-    for data, name, color, row in indicators:
-        fig.add_trace(
-            go.Scatter(x=df.index, y=data, name=name, line=dict(color=color)),
-            row=row, col=1
-        )
+    p1.add_tools(HoverTool(
+        tooltips=[("Date", "@index{%F}"), ("Close", "@Close{$0,0.00}")],
+        formatters={'@index': 'datetime'}
+    ))
     
-    # MACD Histogram
-    colors_hist = ['green' if val >= 0 else 'red' for val in df['MACD_hist']]
-    fig.add_trace(
-        go.Bar(x=df.index, y=df['MACD_hist'], marker_color=colors_hist,
-               opacity=0.5, showlegend=False, name='MACD Hist'),
-        row=4, col=1
-    )
+    # 2. RSI chart
+    p2 = figure(x_axis_type="datetime", height=150, width=1000,
+                title="RSI", x_range=p1.x_range)
     
-    # Horizontal lines
-    levels = [
-        (buy_rsi, 'green', f'Buy RSI > {buy_rsi}', 2),
-        (sell_rsi, 'red', f'Sell RSI < {sell_rsi}', 2),
-        (buy_cci, 'green', f'Buy CCI > {buy_cci}', 2),
-        (sell_cci, 'red', f'Sell CCI < {sell_cci}', 2),
-        (25, 'orange', 'Strong Trend', 3),
-        (0, 'gray', None, 4)
-    ]
+    p2.line(x='index', y='RSI', source=source, 
+            line_width=2, color=Category10[3][0])
     
-    for level, color, text, row in levels:
-        fig.add_hline(y=level, line_dash="dash", line_color=color, opacity=0.7,
-                     annotation_text=text, row=row, col=1)
+    # RSI levels
+    p2.line(x='index', y=buy_rsi, source=source, 
+            line_dash='dashed', color='green')
+    p2.line(x='index', y=sell_rsi, source=source, 
+            line_dash='dashed', color='red')
+    p2.line(x='index', y=50, source=source, 
+            line_dash='dotted', color='gray', alpha=0.5)
     
-    fig.update_layout(
-        height=900,
-        showlegend=True,
-        hovermode='x unified',
-        template='plotly_white'
-    )
+    p2.y_range.start = 0
+    p2.y_range.end = 100
     
-    fig.update_xaxes(rangeslider_visible=False)
-    fig.update_xaxes(rangeslider_visible=True, row=5, col=1)
+    # 3. CCI chart
+    p3 = figure(x_axis_type="datetime", height=150, width=1000,
+                title="CCI", x_range=p1.x_range)
     
-    return fig
+    p3.line(x='index', y='CCI', source=source, 
+            line_width=2, color=Category10[3][1])
+    
+    # CCI levels
+    p3.line(x='index', y=buy_cci, source=source, 
+            line_dash='dashed', color='green')
+    p3.line(x='index', y=sell_cci, source=source, 
+            line_dash='dashed', color='red')
+    p3.line(x='index', y=0, source=source, 
+            line_dash='dotted', color='gray', alpha=0.5)
+    
+    # 4. MACD chart
+    p4 = figure(x_axis_type="datetime", height=150, width=1000,
+                title="MACD", x_range=p1.x_range)
+    
+    p4.line(x='index', y='MACD', source=source, 
+            line_width=2, color='blue', legend_label="MACD")
+    p4.line(x='index', y='MACD_signal', source=source, 
+            line_width=2, color='red', legend_label="Signal")
+    
+    # Histogram
+    hist_source = ColumnDataSource(df.reset_index())
+    p4.vbar(x='index', top='MACD_hist', width=0.8, source=hist_source,
+            color='gray', alpha=0.5)
+    
+    p4.legend.location = "top_left"
+    
+    # Combine all charts
+    layout = column(p1, p2, p3, p4, sizing_mode="stretch_width")
+    
+    return layout
 
 # Main App
 st.title("📈 Technical Analysis Dashboard")
@@ -363,10 +374,20 @@ if analyze_button:
             else:
                 st.metric("Avg Days Held", "0")
         
-        # Display chart
+        # Create Bokeh chart
+        bokeh_chart = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
+        
+        # Convert to HTML
+        script, div = components(bokeh_chart)
+        
+        # Display in Streamlit
         st.subheader("📈 Interactive Chart")
-        fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol)
-        st.plotly_chart(fig, use_container_width=True)
+        st.components.v1.html(f"""
+            <link rel="stylesheet" href="https://cdn.bokeh.org/bokeh/release/bokeh-3.3.0.min.css">
+            <script src="https://cdn.bokeh.org/bokeh/release/bokeh-3.3.0.min.js"></script>
+            {script}
+            {div}
+        """, height=800, scrolling=False)        
         
         # Display trades
         # Performance metrics - CORRECTED VERSION
