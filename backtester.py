@@ -311,23 +311,30 @@ if analyze_button:
         
         # Calculate indicators
         with st.spinner("Calculating indicators..."):
-            data['RSI'] = ta.momentum.RSIIndicator(close=data['Close'], window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
+            # Ensure we have proper Series objects (1D arrays)
+            close = pd.Series(df['Close'].values.flatten(), index=df.index)
+            high = pd.Series(df['High'].values.flatten(), index=df.index)
+            low = pd.Series(df['Low'].values.flatten(), index=df.index)
+            open_price = pd.Series(df['Open'].values.flatten(), index=df.index)
+            volume = pd.Series(df['Volume'].values.flatten(), index=df.index)
+            
+            data['RSI'] = ta.momentum.RSIIndicator(close, window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
             data['CCI'] = ta.trend.CCIIndicator(
-            high=data['High'], 
-            low=data['Low'], 
-            close=data['Close'], 
+            high, 
+            low, 
+            close, 
             window=cci_period
             ).cci() #calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
                 
             data['ADX'] = ta.trend.ADXIndicator(
-            high=data['High'], 
-            low=data['Low'], 
-            close=data['Close'], 
+            high, 
+            low, 
+            close, 
             window=adx_period
             ).adx() #calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
 
             macd_indicator = ta.trend.MACD(
-                close=data['Close'],
+                close,
                 window_slow=macd_slow,
                 window_fast=macd_fast,
                 window_sign=macd_signal
