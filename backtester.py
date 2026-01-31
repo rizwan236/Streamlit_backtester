@@ -126,34 +126,40 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
     
     for i in range(1, len(df)):
         date = df.index[i]
-        close = df['Close'].iloc[i]
-        rsi = df['RSI'].iloc[i]
-        cci = df['CCI'].iloc[i]
+        # Get scalar values using .iloc and convert to float
+        close_val = float(df['Close'].iloc[i])
+        rsi_val = float(df['RSI'].iloc[i])
+        cci_val = float(df['CCI'].iloc[i])
         
-        if not in_position and rsi > buy_rsi and cci > buy_cci:
-            in_position, entry_price, entry_date = True, close, date
+        if not in_position and rsi_val > buy_rsi and cci_val > buy_cci:
+            in_position, entry_price, entry_date = True, close_val, date
             df.loc[date, 'Signal'] = 'BUY'
-        elif in_position and rsi < sell_rsi and cci < sell_cci:
-            pnl = ((close - entry_price) / entry_price * 100)
+        elif in_position and rsi_val < sell_rsi and cci_val < sell_cci:
+            pnl = ((close_val - entry_price) / entry_price * 100)
             holding = (date - entry_date).days
             df.loc[date, 'Signal'] = 'SELL'
             trades.append({
                 'Entry': entry_date.date(), 'Exit': date.date(),
-                'Buy Price': f"${entry_price:.2f}", 'Sell Price': f"${close:.2f}",
-                'P&L': f"{pnl:+.2f}%", 'Days': holding
+                'Buy Price': f"${entry_price:.2f}", 
+                'Sell Price': f"${close_val:.2f}",
+                'P&L': f"{pnl:+.2f}%", 
+                'Days': holding
             })
             in_position = False
     
     # Close any open position
     if in_position:
-        date, close = df.index[-1], df['Close'].iloc[-1]
-        pnl = ((close - entry_price) / entry_price * 100)
+        date = df.index[-1]
+        close_val = float(df['Close'].iloc[-1])
+        pnl = ((close_val - entry_price) / entry_price * 100)
         holding = (date - entry_date).days
         df.loc[date, 'Signal'] = 'SELL (End)'
         trades.append({
             'Entry': entry_date.date(), 'Exit': date.date(),
-            'Buy Price': f"${entry_price:.2f}", 'Sell Price': f"${close:.2f}",
-            'P&L': f"{pnl:+.2f}%", 'Days': holding
+            'Buy Price': f"${entry_price:.2f}", 
+            'Sell Price': f"${close_val:.2f}",
+            'P&L': f"{pnl:+.2f}%", 
+            'Days': holding
         })
     
     return df, trades
