@@ -339,9 +339,9 @@ if analyze_button:
                 window_fast=macd_fast,
                 window_sign=macd_signal
             )
-            df['MACD'] = macd_indicator.macd()
-            df['MACD_signal'] = macd_indicator.macd_signal()
-            df['MACD_hist'] = macd_indicator.macd_diff()  # This is the histogram
+            data['MACD'] = macd_indicator.macd()
+            data['MACD_signal'] = macd_indicator.macd_signal()
+            data['MACD_hist'] = macd_indicator.macd_diff()  # This is the histogram
             
             
             #macd, signal, hist = calculate_macd(data['Close'], macd_fast, macd_slow, macd_signal)
