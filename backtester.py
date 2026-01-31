@@ -311,14 +311,36 @@ if analyze_button:
         
         # Calculate indicators
         with st.spinner("Calculating indicators..."):
-            data['RSI'] = calculate_rsi(data['Close'], rsi_period)
-            data['CCI'] = calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
-            data['ADX'] = calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
+            data['RSI'] = ta.momentum.RSIIndicator(close=df['Close'], window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
+            data['CCI'] = ta.trend.CCIIndicator(
+            high=df['High'], 
+            low=df['Low'], 
+            close=df['Close'], 
+            window=cci_period
+            ).cci() #calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
+                
+            data['ADX'] = ta.trend.ADXIndicator(
+            high=df['High'], 
+            low=df['Low'], 
+            close=df['Close'], 
+            window=adx_period
+            ).adx() #calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
+
+            macd_indicator = ta.trend.MACD(
+                close=df['Close'],
+                window_slow=macd_slow,
+                window_fast=macd_fast,
+                window_sign=macd_signal
+            )
+            df['MACD'] = macd_indicator.macd()
+            df['MACD_signal'] = macd_indicator.macd_signal()
+            df['MACD_hist'] = macd_indicator.macd_diff()  # This is the histogram
             
-            macd, signal, hist = calculate_macd(data['Close'], macd_fast, macd_slow, macd_signal)
-            data['MACD'] = macd.values
-            data['MACD_signal'] = signal.values
-            data['MACD_hist'] = hist.values
+            
+            #macd, signal, hist = calculate_macd(data['Close'], macd_fast, macd_slow, macd_signal)
+            #data['MACD'] = macd.values
+            #data['MACD_signal'] = signal.values
+            #data['MACD_hist'] = hist.values
             
             data['Drawdown'] = calculate_drawdown(data['Close'])
         
