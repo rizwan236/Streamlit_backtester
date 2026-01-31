@@ -18,14 +18,25 @@ POPULAR_SYMBOLS = [
     "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"
 ]
 
-
 def calculate_drawdown(prices):
-    """Calculate drawdown"""
-    # Ensure 1D Series
-    prices_series = pd.Series(prices.values.flatten() if hasattr(prices, 'values') else prices)
-    cummax = prices_series.cummax()
-    drawdown = ((prices_series - cummax) / cummax * 100).fillna(0)
-    return drawdown
+    """Calculate drawdown using pandas operations"""
+    # Ensure we have a Series
+    if isinstance(prices, pd.Series):
+        price_series = prices
+    elif isinstance(prices, pd.DataFrame):
+        # If it's a DataFrame, take the first column or flatten
+        price_series = prices.iloc[:, 0] if prices.shape[1] > 0 else prices.iloc[:, 0]
+    else:
+        price_series = pd.Series(prices)
+    
+    # Calculate cumulative max
+    cummax = price_series.expanding().max()
+    
+    # Calculate drawdown percentage
+    drawdown = ((price_series - cummax) / cummax * 100)
+    
+    # Fill any NaN values (should only be the first value)
+    return drawdown.fillna(0)
     
 # Trading logic
 def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
