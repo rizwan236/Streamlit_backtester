@@ -312,11 +312,11 @@ if analyze_button:
         # Calculate indicators
         with st.spinner("Calculating indicators..."):
             # Ensure we have proper Series objects (1D arrays)
-            close = pd.Series(data['Close'].values.flatten(), index=df.index)
-            high = pd.Series(data['High'].values.flatten(), index=df.index)
-            low = pd.Series(data['Low'].values.flatten(), index=df.index)
-            open_price = pd.Series(data['Open'].values.flatten(), index=df.index)
-            volume = pd.Series(data['Volume'].values.flatten(), index=df.index)
+            close = pd.Series(data['Close'].values.flatten(), index=data.index)
+            high = pd.Series(data['High'].values.flatten(), index=data.index)
+            low = pd.Series(data['Low'].values.flatten(), index=data.index)
+            open_price = pd.Series(data['Open'].values.flatten(), index=data.index)
+            volume = pd.Series(data['Volume'].values.flatten(), index=data.index)
             
             data['RSI'] = ta.momentum.RSIIndicator(close, window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
             data['CCI'] = ta.trend.CCIIndicator(
