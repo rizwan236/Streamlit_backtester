@@ -311,23 +311,23 @@ if analyze_button:
         
         # Calculate indicators
         with st.spinner("Calculating indicators..."):
-            data['RSI'] = ta.momentum.RSIIndicator(close=df['Close'], window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
+            data['RSI'] = ta.momentum.RSIIndicator(close=data['Close'], window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
             data['CCI'] = ta.trend.CCIIndicator(
-            high=df['High'], 
-            low=df['Low'], 
-            close=df['Close'], 
+            high=data['High'], 
+            low=data['Low'], 
+            close=data['Close'], 
             window=cci_period
             ).cci() #calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
                 
             data['ADX'] = ta.trend.ADXIndicator(
-            high=df['High'], 
-            low=df['Low'], 
-            close=df['Close'], 
+            high=data['High'], 
+            low=data['Low'], 
+            close=data['Close'], 
             window=adx_period
             ).adx() #calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
 
             macd_indicator = ta.trend.MACD(
-                close=df['Close'],
+                close=data['Close'],
                 window_slow=macd_slow,
                 window_fast=macd_fast,
                 window_sign=macd_signal
