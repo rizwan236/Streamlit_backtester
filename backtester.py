@@ -92,7 +92,7 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
     return df, trades
 
 # Chart creation
-def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,combined_data):    
+def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):    
     """
     Simplified matplotlib chart that avoids candlestick plotting issues
     """
@@ -336,7 +336,7 @@ if analyze_button:
         
         try:
             # Use the simple chart to avoid issues
-            fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,combined_data)
+            fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,)
             
             # Display in Streamlit
             st.pyplot(fig)
