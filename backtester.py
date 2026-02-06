@@ -204,7 +204,7 @@ with st.sidebar:
     symbol = custom_symbol.upper() if custom_symbol.strip() else selected_symbol
     
     # Period
-    period = st.selectbox("Period", ["1y", "2y", "3y", "5y", "10y", "max"], index=0)
+    period = st.selectbox("Period", ["1y"], index=0)  #, "2y", "3y", "5y", "10y", "max"
     
     # Trading rules
     st.subheader("📊 Trading Rules")
@@ -218,17 +218,23 @@ with st.sidebar:
     
     # Indicator periods
     st.subheader("⚙️ Indicator Settings")
-    rsi_period = st.slider("RSI Period", 5, 30, 14, key='rsi')
-    cci_period = st.slider("CCI Period", 5, 30, 20, key='cci')
-    adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
+    #rsi_period = st.slider("RSI Period", 5, 30, 14, key='rsi')
+    rsi_period = st.number_input("RSI Period (exact)",7, 64, rsi_period, 14, key="rsi_input")
+    #cci_period = st.slider("CCI Period", 5, 30, 20, key='cci')
+    cci_period = st.number_input("CCI Period (exact)",7, 64, rsi_period, 34, key="cci_input")
+    #adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
+    adx_period = st.number_input("ADX Period (exact)",7, 64, rsi_period, 34, key="adx_input")
     
     col1, col2, col3 = st.columns(3)
     with col1:
-        macd_fast = st.slider("MACD Fast", 5, 20, 12, key='fast')
+        #macd_fast = st.slider("MACD Fast", 5, 20, 12, key='fast')
+        macd_fast = st.number_input("MACD Fast (exact)",5, 20, rsi_period, 14, key="fast")
     with col2:
-        macd_slow = st.slider("MACD Slow", 15, 35, 26, key='slow')
+        #macd_slow = st.slider("MACD Slow", 15, 35, 26, key='slow')
+        macd_slow = st.number_input("MACD Slow (exact)",15, 35, rsi_period, 26, key="slow")
     with col3:
-        macd_signal = st.slider("MACD Signal", 5, 15, 9, key='signal')
+        #macd_signal = st.slider("MACD Signal", 5, 15, 9, key='signal')
+        macd_signal = st.number_input("MACD Signal (exact)",15, 15, rsi_period, 9, key="signal")
     
     analyze_button = st.button("🚀 Analyze", type="primary", use_container_width=True)
 
