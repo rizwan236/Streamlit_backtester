@@ -18,6 +18,12 @@ POPULAR_SYMBOLS = [
     "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"
 ]
 
+combined_data = pd.read_pickle(
+    r"/home/rizpython236/BT5/screener-outputs/combined_ticker_data.pkl.gz", compression="gzip")
+
+POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
+
+
 def calculate_drawdown(prices):
     """Calculate drawdown using pandas operations"""
     # Ensure we have a Series
