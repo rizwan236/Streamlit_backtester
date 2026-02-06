@@ -17,13 +17,17 @@ POPULAR_SYMBOLS = [
     "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX",
     "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"
 ]
-
-combined_data = pd.read_pickle(
-    r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
-print(combined_data.columns.tolist())
-
-POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
-
+try:
+    combined_data = pd.read_pickle(
+        r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
+    print(combined_data.columns.tolist())
+    
+    POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
+except:
+    POPULAR_SYMBOLS = [
+    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX",
+    "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
+    
 
 def calculate_drawdown(prices):
     """Calculate drawdown using pandas operations"""
