@@ -20,6 +20,7 @@ POPULAR_SYMBOLS = [
 
 combined_data = pd.read_pickle(
     r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
+print(combined_data.columns.tolist())
 
 POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
 
