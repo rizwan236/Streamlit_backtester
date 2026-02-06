@@ -13,10 +13,6 @@ from matplotlib.patches import Rectangle
 st.set_page_config(page_title="Tech Analysis", layout="wide", initial_sidebar_state="expanded")
 
 # Popular symbols for autocomplete
-POPULAR_SYMBOLS = [
-    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX",
-    "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"
-]
 try:
     combined_data = pd.read_pickle(
         r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
@@ -24,9 +20,7 @@ try:
     
     POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
 except:
-    POPULAR_SYMBOLS = [
-    "AAPL", "MSFT", "GOOGL", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX",
-    "JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
+    POPULAR_SYMBOLS = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX","JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
     
 
 def calculate_drawdown(prices):
@@ -219,26 +213,27 @@ with st.sidebar:
     with col2:
         buy_cci = st.number_input("Buy CCI >", -100, 100, 0)
         sell_cci = st.number_input("Sell CCI <", -100, 100, 0)
-    
+
+   
     # Indicator periods
     st.subheader("⚙️ Indicator Settings")
     #rsi_period = st.slider("RSI Period", 5, 30, 14, key='rsi')
-    rsi_period = st.number_input("RSI Period (exact)",7, 64, rsi_period, 14, key="rsi_input")
+    rsi_period = st.number_input("RSI Period",min_value=7,max_value= 64, value= 14, step=1,key="rsi_input")
     #cci_period = st.slider("CCI Period", 5, 30, 20, key='cci')
-    cci_period = st.number_input("CCI Period (exact)",7, 64, rsi_period, 34, key="cci_input")
+    cci_period = st.number_input("CCI Period",min_value=7,max_value= 64, value=34, key="cci_input")
     #adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
-    adx_period = st.number_input("ADX Period (exact)",7, 64, rsi_period, 34, key="adx_input")
+    adx_period = st.number_input("ADX Period",min_value=7,max_value= 64, value= 34, key="adx_input")
     
     col1, col2, col3 = st.columns(3)
     with col1:
         #macd_fast = st.slider("MACD Fast", 5, 20, 12, key='fast')
-        macd_fast = st.number_input("MACD Fast (exact)",5, 20, rsi_period, 14, key="fast")
+        macd_fast = st.number_input("MACD Fast",min_value=5,max_value= 20, value= 14, key="fast")
     with col2:
         #macd_slow = st.slider("MACD Slow", 15, 35, 26, key='slow')
-        macd_slow = st.number_input("MACD Slow (exact)",15, 35, rsi_period, 26, key="slow")
+        macd_slow = st.number_input("MACD Slow",min_value=15,max_value= 35, value= 26, key="slow")
     with col3:
         #macd_signal = st.slider("MACD Signal", 5, 15, 9, key='signal')
-        macd_signal = st.number_input("MACD Signal (exact)",15, 15, rsi_period, 9, key="signal")
+        macd_signal = st.number_input("MACD Signal",min_value=5,max_value= 15, value= 9, key="signal")
     
     analyze_button = st.button("🚀 Analyze", type="primary", use_container_width=True)
 
