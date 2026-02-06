@@ -332,7 +332,13 @@ if analyze_button:
         
         # In your analyze button section, replace the plotly chart with:
         # In your analyze section, replace the plotly chart with:
-        st.subheader("📈 Technical Analysis Chart")
+        stock1 = yf.Ticker(symbol)
+        
+        company_name = stock1.info.get("shortName", symbol)
+        
+        st.subheader(f"📈 Technical Analysis Chart — {company_name} ({symbol})")
+        
+        #st.subheader("📈 Technical Analysis Chart")
         
         try:
             # Use the simple chart to avoid issues
