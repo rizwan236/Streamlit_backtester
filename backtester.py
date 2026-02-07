@@ -70,7 +70,7 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
         MOMScore = float(df['MOMScore'].iloc[i])
         weighted_excessMR = float(df['weighted_excessMR'].iloc[i])
         #SMAScore24 
-        ST= str(df['ST'].iloc[i])
+        ST= (df['ST'].iloc[i])
         #EMAMRP24
         MRP= float(df['MRP'].iloc[i])
         #EMAOBV
