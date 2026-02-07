@@ -136,7 +136,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     
     # 1. Price Chart (Simplified - just close price)
     ax1 = axes[0]
-    ax1.plot(df.index, df['MOMScore'], color='blue', linewidth=2, label='Close Price')
+    ax1.plot(df.index, df['Close'], color='blue', linewidth=2, label='Close Price')
     
     # Mark buy/sell signals
     buy_mask = df['Signal'] == 'BUY'
