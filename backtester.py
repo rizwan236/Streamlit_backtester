@@ -242,7 +242,10 @@ if analyze_button:
     try:
         # Download data
         with st.spinner(f"Fetching {symbol} data..."):
-            data = yf.download(symbol, period=period, progress=False)
+            #combined_data["Symbol"].dropna().unique().tolist()
+            data = combined_data.loc[combined_data["Symbol"] == symbol]
+            data = data.reset_index(drop=True)
+            #data = yf.download(symbol, period=period, progress=False)
             if data.empty:
                 st.error(f"❌ No data found for {symbol}")
                 st.stop()
