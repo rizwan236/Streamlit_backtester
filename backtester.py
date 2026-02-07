@@ -55,12 +55,39 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
         date = df.index[i]
         # Get scalar values using .iloc and convert to float
         close_val = float(df['Close'].iloc[i])
+        opene_val = float(df['Open'].iloc[i])
+        high_val = float(df['High'].iloc[i])
+        low_val = float(df['Low'].iloc[i])
+        volume_val = float(df['Volume'].iloc[i])
         rsi_val = float(df['RSI'].iloc[i])
         cci_val = float(df['CCI'].iloc[i])
+        niftyClose = float(df['niftyClose'].iloc[i])
+        #SMAAD
+        #AD
+        #ADX
+        #PLUS_DI
+        #MINUS_DI
+        MOMScore = float(df['MOMScore'].iloc[i])
+        weighted_excessMR = float(df['weighted_excessMR'].iloc[i])
+        #SMAScore24 
+        ST= float(df['ST'].iloc[i])
+        #EMAMRP24
+        MRP= float(df['MRP'].iloc[i])
+        #EMAOBV
+        OBV= float(df['OBV'].iloc[i])
+        #SMAClose10
+        #SMAClose30
+        #SMAClose40
+        #sma_based_sma200
+        #wkH52
+        #wkL52
         
+
+        #if ctx.bars >= 250 and ctx.indicator("HT_TRENDMODE")[-1] >= 1 and ctx.indicator("LINEARREG_SLOPE_OBV")[-1] > 2 and ctx.niftyClose[-1] > ctx.indicator("niftyClosewkH52")[-1] * 0.0 and ctx.niftyClose[-1]*100 > ctx.indicator("SMAniftyClose10")[-1]*10 > ctx.indicator("SMAniftyClose30")[-1]*0 and ctx.indicator("SMAAD")[-2] * 1.0 < ctx.AD[-1] and ctx.indicator("ADX")[-3] < ctx.indicator("ADX")[-1] > 25 and ctx.indicator("PLUS_DI")[-1] > ctx.indicator("PLUS_DI")[-3] and (ctx.indicator("PLUS_DI")[-1] - ctx.indicator("MINUS_DI")[-1]) > 15 and ctx.volume[-90] >= 1000 and ctx.volume[-30] >= 1000 and ctx.volume[-3] >= 1000 and (0 != ctx.MOMScore[-1] > 1.5 or 0 != ctx.weighted_excessMR[-1] > 0.4) and ctx.indicator("SMAScore24")[-1] > -10 and (ctx.ST[-1] == 1 and ctx.indicator("EMAMRP24")[-1] < ctx.MRP[-1] and ctx.indicator("EMAOBV")[-1] * 1.0 < ctx.OBV[-1] and ctx.close[-1] > ctx.indicator("SMAClose10")[-1] > ctx.indicator("SMAClose30")[-1] > ctx.indicator("SMAClose40")[-1] and ctx.indicator("SMAClose40")[-21] < ctx.indicator("SMAClose40")[-1] > ctx.indicator("sma_based_sma200")[-1] and ctx.indicator("RSI_14")[-1] > 50 and ctx.close[-1] > ctx.indicator("wkH52")[-1] * .75 and ctx.close[-1] > ctx.indicator("wkL52")[-1] * 1.35):
         if not in_position and rsi_val > buy_rsi and cci_val > buy_cci:
             in_position, entry_price, entry_date = True, close_val, date
             df.loc[date, 'Signal'] = 'BUY'
+        #if (ctx.bars >= 250 and (ctx.close[-1] < ctx.indicator("SMAClose40")[-1] and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15)) or ((0 != ctx.MOMScore[-1] < 1.5 or 0 != ctx.weighted_excessMR[-1] < 0.4 or ctx.DD_LOG[-1] > 25 or ctx.indicator("EMAOBV")[-1] * 0.95 > ctx.OBV[-1]) and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15 and (ctx.indicator("RSI_20")[-1] < 35 or ctx.indicator("CCI_34")[-1] < 0 or ctx.indicator("SMAClose10")[-1] < ctx.indicator("SMAClose30")[-1])):    
         elif in_position and rsi_val < sell_rsi and cci_val < sell_cci:
             pnl = ((close_val - entry_price) / entry_price * 100)
             holding = (date - entry_date).days
@@ -220,9 +247,9 @@ with st.sidebar:
     #rsi_period = st.slider("RSI Period", 5, 30, 14, key='rsi')
     rsi_period = st.number_input("RSI Period",min_value=7,max_value= 64, value= 14, step=1,key="rsi_input")
     #cci_period = st.slider("CCI Period", 5, 30, 20, key='cci')
-    cci_period = st.number_input("CCI Period",min_value=7,max_value= 64, value=34, key="cci_input")
+    cci_period = st.number_input("CCI Period",min_value=7,max_value= 42, value=34, key="cci_input")
     #adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
-    adx_period = st.number_input("ADX Period",min_value=7,max_value= 64, value= 34, key="adx_input")
+    adx_period = st.number_input("ADX Period",min_value=7,max_value= 34, value= 21, key="adx_input")
     
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -248,6 +275,9 @@ if analyze_button:
             data = data.copy()
             data["Date"] = pd.to_datetime(data["Date"])  
             data.set_index("Date", inplace=True)
+            data.rename(columns={"Score": "MOMScore"}, inplace=True)   
+            #pybroker.register_columns("Stock_Cumulative_Return", "MRP", "Exp", "DD_PCT", "DD_LOG", "ta_DD_LOG", "ST", "OBV", "AD", "MOMScore", "niftyOpen", "niftyHigh",
+            #                          "niftyLow", "niftyClose", "SMA_200C", "AD", "weighted_MR", "weighted_excessMR", "Beta")         
             #data = yf.download(symbol, period=period, progress=False)
             if data.empty:
                 st.error(f"❌ No data found for {symbol}")
@@ -271,6 +301,12 @@ if analyze_button:
             close, 
             window=cci_period
             ).cci() #calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
+
+            #data['AD'] = ta.volume.acc_dist_index(high, low, close, volume, fillna=False).cci() 
+            #ta.trend.sma_indicator(close, window=12, fillna=False)
+            #ta.trend.ema_indicator(close, window=12, fillna=False)
+            #ta.trend.adx_neg(high, low, close, window=14, fillna=False)
+            #ta.trend.adx_pos(high, low, close, window=14, fillna=False)
                 
             data['ADX'] = ta.trend.ADXIndicator(
             high, 
