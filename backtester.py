@@ -242,15 +242,12 @@ if analyze_button:
     try:
         # Download data
         with st.spinner(f"Fetching {symbol} data..."):
-            #combined_data["Symbol"].dropna().unique().tolist()
-            symbol_data = symbol_data.copy()
-            
-            symbol_data["Date"] = pd.to_datetime(symbol_data["Date"])
-            symbol_data.set_index("Date", inplace=True)
+            #combined_data["Symbol"].dropna().unique().tolist()          
             data = combined_data.loc[combined_data["Symbol"] == symbol]
             data = data.reset_index(drop=True)
             data = data.copy()
-            data["Date"] = pd.to_datetime(data["Date"])            
+            data["Date"] = pd.to_datetime(data["Date"])  
+            data.set_index("Date", inplace=True)
             #data = yf.download(symbol, period=period, progress=False)
             if data.empty:
                 st.error(f"❌ No data found for {symbol}")
