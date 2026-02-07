@@ -84,11 +84,11 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
         
 
         #if ctx.bars >= 250 and ctx.indicator("HT_TRENDMODE")[-1] >= 1 and ctx.indicator("LINEARREG_SLOPE_OBV")[-1] > 2 and ctx.niftyClose[-1] > ctx.indicator("niftyClosewkH52")[-1] * 0.0 and ctx.niftyClose[-1]*100 > ctx.indicator("SMAniftyClose10")[-1]*10 > ctx.indicator("SMAniftyClose30")[-1]*0 and ctx.indicator("SMAAD")[-2] * 1.0 < ctx.AD[-1] and ctx.indicator("ADX")[-3] < ctx.indicator("ADX")[-1] > 25 and ctx.indicator("PLUS_DI")[-1] > ctx.indicator("PLUS_DI")[-3] and (ctx.indicator("PLUS_DI")[-1] - ctx.indicator("MINUS_DI")[-1]) > 15 and ctx.volume[-90] >= 1000 and ctx.volume[-30] >= 1000 and ctx.volume[-3] >= 1000 and (0 != ctx.MOMScore[-1] > 1.5 or 0 != ctx.weighted_excessMR[-1] > 0.4) and ctx.indicator("SMAScore24")[-1] > -10 and (ctx.ST[-1] == 1 and ctx.indicator("EMAMRP24")[-1] < ctx.MRP[-1] and ctx.indicator("EMAOBV")[-1] * 1.0 < ctx.OBV[-1] and ctx.close[-1] > ctx.indicator("SMAClose10")[-1] > ctx.indicator("SMAClose30")[-1] > ctx.indicator("SMAClose40")[-1] and ctx.indicator("SMAClose40")[-21] < ctx.indicator("SMAClose40")[-1] > ctx.indicator("sma_based_sma200")[-1] and ctx.indicator("RSI_14")[-1] > 50 and ctx.close[-1] > ctx.indicator("wkH52")[-1] * .75 and ctx.close[-1] > ctx.indicator("wkL52")[-1] * 1.35):
-        if not in_position and rsi_val > buy_rsi and cci_val > buy_cci:
+        if not in_position and rsi_val > buy_rsi and cci_val > buy_cci and MOMScore > 0.4 and MRP > float(df['MRP'].iloc[i-2] and ST ==1:
             in_position, entry_price, entry_date = True, close_val, date
             df.loc[date, 'Signal'] = 'BUY'
         #if (ctx.bars >= 250 and (ctx.close[-1] < ctx.indicator("SMAClose40")[-1] and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15)) or ((0 != ctx.MOMScore[-1] < 1.5 or 0 != ctx.weighted_excessMR[-1] < 0.4 or ctx.DD_LOG[-1] > 25 or ctx.indicator("EMAOBV")[-1] * 0.95 > ctx.OBV[-1]) and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15 and (ctx.indicator("RSI_20")[-1] < 35 or ctx.indicator("CCI_34")[-1] < 0 or ctx.indicator("SMAClose10")[-1] < ctx.indicator("SMAClose30")[-1])):    
-        elif in_position and rsi_val < sell_rsi and cci_val < sell_cci:
+        elif in_position and rsi_val < sell_rsi and cci_val < sell_cci and ST ==0:
             pnl = ((close_val - entry_price) / entry_price * 100)
             holding = (date - entry_date).days
             df.loc[date, 'Signal'] = 'SELL'
@@ -305,8 +305,21 @@ if analyze_button:
             #data['AD'] = ta.volume.acc_dist_index(high, low, close, volume, fillna=False).cci() 
             #ta.trend.sma_indicator(close, window=12, fillna=False)
             #ta.trend.ema_indicator(close, window=12, fillna=False)
-            #ta.trend.adx_neg(high, low, close, window=14, fillna=False)
-            #ta.trend.adx_pos(high, low, close, window=14, fillna=False)
+
+            #SMAAD
+            #AD
+            #ADX
+            #data['PLUS_DI']=ta.trend.adx_pos(high, low, close, window=14, fillna=False).PLUS_DI()
+            #data['MINUS_DI']= ta.trend.adx_neg(high, low, close, window=14, fillna=False).MINUS_DI()
+            #SMAClose10
+            #SMAClose30
+            #SMAClose40
+            #sma_based_sma200
+            #wkH52
+            #wkL52        
+            #SMAScore24     
+            #EMAMRP24  
+            #EMAOBV            
                 
             data['ADX'] = ta.trend.ADXIndicator(
             high, 
