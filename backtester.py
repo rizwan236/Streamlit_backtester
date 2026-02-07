@@ -235,8 +235,8 @@ with st.sidebar:
     st.subheader("📊 Trading Rules")
     col1, col2 = st.columns(2)
     with col1:
-        buy_rsi = st.number_input("Buy RSI >", 50, 80, 60)
-        sell_rsi = st.number_input("Sell RSI <", 20, 50, 30)
+        buy_rsi = st.number_input("Buy RSI >", 0, 100, 50)
+        sell_rsi = st.number_input("Sell RSI <", 0, 100, 50)
     with col2:
         buy_cci = st.number_input("Buy CCI >", -100, 100, 0)
         sell_cci = st.number_input("Sell CCI <", -100, 100, 0)
@@ -245,7 +245,7 @@ with st.sidebar:
     # Indicator periods
     st.subheader("⚙️ Indicator Settings")
     #rsi_period = st.slider("RSI Period", 5, 30, 14, key='rsi')
-    rsi_period = st.number_input("RSI Period",min_value=7,max_value= 64, value= 14, step=1,key="rsi_input")
+    rsi_period = st.number_input("RSI Period",min_value=7,max_value= 64, value= 14,key="rsi_input")
     #cci_period = st.slider("CCI Period", 5, 30, 20, key='cci')
     cci_period = st.number_input("CCI Period",min_value=7,max_value= 42, value=34, key="cci_input")
     #adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
