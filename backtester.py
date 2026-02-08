@@ -277,7 +277,7 @@ with st.sidebar:
     #macd_fast =14
     #macd_slow=26
     #macd_signal=9
-    #col1, col2, col3 = st.columns(3)
+    col1, col2, col3 = st.columns(3)
     with col1:
         #macd_fast = st.slider("MACD Fast", 5, 20, 12, key='fast')
         macd_fast = 14 #st.number_input("MACD Fast",min_value=5,max_value= 20, value= 14, key="fast")
@@ -287,7 +287,7 @@ with st.sidebar:
     with col3:
         #macd_signal = st.slider("MACD Signal", 5, 15, 9, key='signal')
         macd_signal = 9#st.number_input("MACD Signal",min_value=5,max_value= 15, value= 9, key="signal")
-    '''    
+     
     
     analyze_button = st.button("🚀 Analyze", type="primary", use_container_width=True)
 
