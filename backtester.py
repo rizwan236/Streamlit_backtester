@@ -156,6 +156,19 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     ax1.set_title(f'{symbol} - Price with Trading Signals', fontsize=12, fontweight='bold')
     ax1.legend(loc='best')
     ax1.grid(True, alpha=0.3)
+
+    volume_colors = df['Close'].diff().apply(
+        lambda x: 'green' if x >= 0 else 'red'
+    )
+    
+    ax6.bar(
+        df.index,
+        df['Volume'],
+        color=volume_colors,
+        width=1.0,
+        alpha=0.6
+    )
+    
     
     # 2. RSI Chart
     ax2 = axes[1]
