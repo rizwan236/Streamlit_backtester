@@ -65,29 +65,39 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
         rsi_val = float(df['RSI'].iloc[i])
         cci_val = float(df['CCI'].iloc[i])
         niftyClose = float(df['niftyClose'].iloc[i])
-        #SMAAD
-        #AD
-        #ADX
-        #PLUS_DI
-        #MINUS_DI
+        SMAAD = float(df['SMAAD'].iloc[i])
+        AD = float(df['AD'].iloc[i])
+        ADX= float(df['ADX'].iloc[i])
+        PLUS_DI= float(df['PLUS_DI'].iloc[i])
+        MINUS_DI= float(df['MINUS_DI'].iloc[i])
         MOMScore = float(df['MOMScore'].iloc[i])
         weighted_excessMR = float(df['weighted_excessMR'].iloc[i])
-        #SMAScore24 
+        SMAScore24 = float(df['SMAScore24'].iloc[i])
         ST= (df['ST'].iloc[i])
-        #EMAMRP24
+        EMAMRP24= float(df['EMAMRP24'].iloc[i])
         MRP= float(df['MRP'].iloc[i])
-        #EMAOBV
+        EMAOBV= float(df['EMAOBV'].iloc[i])
         OBV= float(df['OBV'].iloc[i])
-        #SMAClose10
-        #SMAClose30
-        #SMAClose40
-        #sma_based_sma200
-        #wkH52
-        #wkL52
+        SMAClose10= float(df['SMAClose10'].iloc[i])
+        SMAClose30= float(df['SMAClose30'].iloc[i])
+        SMAClose40= float(df['SMAClose40'].iloc[i])
+        sma_based_sma200= float(df['sma_based_sma200'].iloc[i])
+        wkH52= float(df['wkH52'].iloc[i])
+        wkL52= float(df['wkL52'].iloc[i])
+        SMA_200C = float(df['SMA_200C'].iloc[i])
+        MRP =float(df['MRP'].iloc[i])
+        OBV=float(df['OBV'].iloc[i])
+        MOMScore =float(df['MOMScore'].iloc[i])
+        RSI_e =float(df['RSI_e'].iloc[i])
+        weighted_excessMR =float(df['weighted_excessMR'].iloc[i])
+        #ST =pd.Series(data['ST'].values.flatten(), index=data.index) 
+        DD_LOG =float(df['DD_LOG'].iloc[i])
+        
         
 
         #if ctx.bars >= 250 and ctx.indicator("HT_TRENDMODE")[-1] >= 1 and ctx.indicator("LINEARREG_SLOPE_OBV")[-1] > 2 and ctx.niftyClose[-1] > ctx.indicator("niftyClosewkH52")[-1] * 0.0 and ctx.niftyClose[-1]*100 > ctx.indicator("SMAniftyClose10")[-1]*10 > ctx.indicator("SMAniftyClose30")[-1]*0 and ctx.indicator("SMAAD")[-2] * 1.0 < ctx.AD[-1] and ctx.indicator("ADX")[-3] < ctx.indicator("ADX")[-1] > 25 and ctx.indicator("PLUS_DI")[-1] > ctx.indicator("PLUS_DI")[-3] and (ctx.indicator("PLUS_DI")[-1] - ctx.indicator("MINUS_DI")[-1]) > 15 and ctx.volume[-90] >= 1000 and ctx.volume[-30] >= 1000 and ctx.volume[-3] >= 1000 and (0 != ctx.MOMScore[-1] > 1.5 or 0 != ctx.weighted_excessMR[-1] > 0.4) and ctx.indicator("SMAScore24")[-1] > -10 and (ctx.ST[-1] == 1 and ctx.indicator("EMAMRP24")[-1] < ctx.MRP[-1] and ctx.indicator("EMAOBV")[-1] * 1.0 < ctx.OBV[-1] and ctx.close[-1] > ctx.indicator("SMAClose10")[-1] > ctx.indicator("SMAClose30")[-1] > ctx.indicator("SMAClose40")[-1] and ctx.indicator("SMAClose40")[-21] < ctx.indicator("SMAClose40")[-1] > ctx.indicator("sma_based_sma200")[-1] and ctx.indicator("RSI_14")[-1] > 50 and ctx.close[-1] > ctx.indicator("wkH52")[-1] * .75 and ctx.close[-1] > ctx.indicator("wkL52")[-1] * 1.35):
         if not in_position and rsi_val > buy_rsi and cci_val > buy_cci  and ST ==1:
+        #if not in_position and  ctx.indicator("SMAAD")[-2] * 1.0 < ctx.AD[-1] and ctx.indicator("ADX")[-3] < ctx.indicator("ADX")[-1] > 25 and ctx.indicator("PLUS_DI")[-1] > ctx.indicator("PLUS_DI")[-3] and (ctx.indicator("PLUS_DI")[-1] - ctx.indicator("MINUS_DI")[-1]) > 15 and ctx.volume[-90] >= 1000 and ctx.volume[-30] >= 1000 and ctx.volume[-3] >= 1000 and (0 != ctx.MOMScore[-1] > 1.5 or 0 != ctx.weighted_excessMR[-1] > 0.4) and ctx.indicator("SMAScore24")[-1] > -10 and (ctx.ST[-1] == 1 and ctx.indicator("EMAMRP24")[-1] < ctx.MRP[-1] and ctx.indicator("EMAOBV")[-1] * 1.0 < ctx.OBV[-1] and ctx.close[-1] > ctx.indicator("SMAClose10")[-1] > ctx.indicator("SMAClose30")[-1] > ctx.indicator("SMAClose40")[-1] and ctx.indicator("SMAClose40")[-21] < ctx.indicator("SMAClose40")[-1] > ctx.indicator("sma_based_sma200")[-1] and ctx.indicator("RSI_14")[-1] > 50 and ctx.close[-1] > ctx.indicator("wkH52")[-1] * .75 and ctx.close[-1] > ctx.indicator("wkL52")[-1] * 1.35):    
             in_position, entry_price, entry_date = True, close_val, date
             df.loc[date, 'Signal'] = 'BUY'
         #if (ctx.bars >= 250 and (ctx.close[-1] < ctx.indicator("SMAClose40")[-1] and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15)) or ((0 != ctx.MOMScore[-1] < 1.5 or 0 != ctx.weighted_excessMR[-1] < 0.4 or ctx.DD_LOG[-1] > 25 or ctx.indicator("EMAOBV")[-1] * 0.95 > ctx.OBV[-1]) and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15 and (ctx.indicator("RSI_20")[-1] < 35 or ctx.indicator("CCI_34")[-1] < 0 or ctx.indicator("SMAClose10")[-1] < ctx.indicator("SMAClose30")[-1])):    
