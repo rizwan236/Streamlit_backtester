@@ -161,6 +161,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
         lambda x: 'green' if x >= 0 else 'red'
     )
     
+    ax6 = axes[5]
     ax6.bar(
         df.index,
         df['Volume'],
