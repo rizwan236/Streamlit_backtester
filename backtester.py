@@ -157,7 +157,24 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     ax1.legend(loc='best')
     ax1.grid(True, alpha=0.3)
 
-  
+    # Volume overlay
+    ax1_vol = ax1.twinx()
+    
+    volume_colors = df['Close'].diff().apply(
+        lambda x: 'green' if x >= 0 else 'red'
+    )
+    
+    ax1_vol.bar(
+        df.index,
+        df['Volume'],
+        color=volume_colors,
+        width=1.0,
+        alpha=0.3,
+        zorder=1
+    )
+    
+    ax1_vol.set_yticks([])
+    ax1_vol.set_ylim(0, df['Volume'].max() * 4)  
     
     # 2. RSI Chart
     ax2 = axes[1]
@@ -209,21 +226,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     fig.autofmt_xdate(rotation=45)
     ax5.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
-    volume_colors = df['Close'].diff().apply(
-        lambda x: 'green' if x >= 0 else 'red'
-    )
-    
-    ax6 = axes[5]
-    ax6.bar(
-        df.index,
-        df['Volume'],
-        color=volume_colors,
-        width=1.0,
-        alpha=0.6
-    )
-    ax6.set_ylabel('Volume', fontweight='bold')
-    ax6.grid(True, alpha=0.3)    
-    
+  
     # Add overall title
     fig.suptitle(f'{symbol} Technical Analysis Dashboard', fontsize=14, fontweight='bold')
     
