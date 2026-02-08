@@ -179,11 +179,11 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     # 2. RSI Chart
     ax2 = axes[1]
     ax2.plot(df.index, df['RSI'], color='purple', linewidth=1.5)
-    ax2.axhline(y=buy_rsi, color='green', linestyle='--', alpha=0.7)
-    ax2.axhline(y=sell_rsi, color='red', linestyle='--', alpha=0.7)
+    ax2.axhline(y=70, color='green', linestyle='--', alpha=0.7) #buy_rsi
+    ax2.axhline(y=30, color='red', linestyle='--', alpha=0.7) #sell_rsi
     ax2.axhline(y=50, color='gray', linestyle=':', alpha=0.5)
-    ax2.fill_between(df.index, buy_rsi, 100, alpha=0.1, color='green')
-    ax2.fill_between(df.index, 0, sell_rsi, alpha=0.1, color='red')
+    ax2.fill_between(df.index, 70, 100, alpha=0.1, color='green') #buy_rsi
+    ax2.fill_between(df.index, 0, 30, alpha=0.1, color='red') #sell_rsi
     ax2.set_ylabel('RSI', fontweight='bold')
     ax2.set_title('RSI Indicator', fontsize=10, fontweight='bold')
     ax2.set_ylim(0, 100)
@@ -192,8 +192,8 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     # 3. CCI Chart
     ax3 = axes[2]
     ax3.plot(df.index, df['CCI'], color='orange', linewidth=1.5)
-    ax3.axhline(y=buy_cci, color='green', linestyle='--', alpha=0.7)
-    ax3.axhline(y=sell_cci, color='red', linestyle='--', alpha=0.7)
+    ax3.axhline(y=0, color='green', linestyle='--', alpha=0.7) #buy_cci
+    ax3.axhline(y=0, color='red', linestyle='--', alpha=0.7) #sell_cci
     ax3.axhline(y=0, color='gray', linestyle=':', alpha=0.5)
     ax3.set_ylabel('CCI', fontweight='bold')
     ax3.set_title('CCI Indicator', fontsize=10, fontweight='bold')
