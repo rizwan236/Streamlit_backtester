@@ -274,20 +274,19 @@ with st.sidebar:
     #adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
     adx_period = st.number_input("ADX Period",min_value=7,max_value= 34, value= 21, key="adx_input")
 
-    macd_fast =14
-    macd_slow=26
-    macd_signal=9
-    '''
-    col1, col2, col3 = st.columns(3)
+    #macd_fast =14
+    #macd_slow=26
+    #macd_signal=9
+    #col1, col2, col3 = st.columns(3)
     with col1:
         #macd_fast = st.slider("MACD Fast", 5, 20, 12, key='fast')
-        macd_fast = st.number_input("MACD Fast",min_value=5,max_value= 20, value= 14, key="fast")
+        macd_fast = 14 #st.number_input("MACD Fast",min_value=5,max_value= 20, value= 14, key="fast")
     with col2:
         #macd_slow = st.slider("MACD Slow", 15, 35, 26, key='slow')
-        macd_slow = st.number_input("MACD Slow",min_value=15,max_value= 35, value= 26, key="slow")
+        macd_slow = 26# st.number_input("MACD Slow",min_value=15,max_value= 35, value= 26, key="slow")
     with col3:
         #macd_signal = st.slider("MACD Signal", 5, 15, 9, key='signal')
-        macd_signal = st.number_input("MACD Signal",min_value=5,max_value= 15, value= 9, key="signal")
+        macd_signal = 9#st.number_input("MACD Signal",min_value=5,max_value= 15, value= 9, key="signal")
     '''    
     
     analyze_button = st.button("🚀 Analyze", type="primary", use_container_width=True)
