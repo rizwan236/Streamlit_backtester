@@ -296,8 +296,38 @@ if analyze_button:
             low = pd.Series(data['Low'].values.flatten(), index=data.index)
             open_price = pd.Series(data['Open'].values.flatten(), index=data.index)
             volume = pd.Series(data['Volume'].values.flatten(), index=data.index)
+            SMA_200C = pd.Series(data['SMA_200C'].values.flatten(), index=data.index)  
+            MRP =pd.Series(data['MRP'].values.flatten(), index=data.index) 
+            OBV=pd.Series(data['OBV'].values.flatten(), index=data.index) 
+            Score =pd.Series(data['Score'].values.flatten(), index=data.index) 
+            RSI_e =pd.Series(data['RSI_e'].values.flatten(), index=data.index) 
             
             data['RSI'] = ta.momentum.RSIIndicator(close, window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
+            data['RSI_20'] = ta.momentum.RSIIndicator(close, window=24).rsi() 
+            data['sma_based_sma200'] = ta.trend.sma_indicator(SMA_200C, window=50, fillna=False)
+            data['SMAScore24'] = ta.trend.sma_indicator(Score, window=7, fillna=False)
+            EMAOBV= ta.trend.sma_indicator(OBV, window=32, fillna=False)
+            EMAClose12= ta.trend.ema_indicator(close, window=50, fillna=False)
+            EMAClose24= ta.trend.ema_indicator(close, window=150, fillna=False)
+            EMAClose52= ta.trend.ema_indicator(close, window=200, fillna=False)
+            SMAClose40 = ta.trend.sma_indicator(close, window=200, fillna=False)
+            SMAClose30 = ta.trend.ema_indicator(close, window=150, fillna=False)
+            SMAClose10= ta.trend.ema_indicator(close, window=50, fillna=False)
+            wkH52 = close.rolling(250, min_periods=1).max()
+            wkL52 = close.rolling(250, min_periods=1).min()
+            EMAMRP12 = ta.trend.ema_indicator(MRP, window=50, fillna=False)
+            EMAMRP52 = ta.trend.ema_indicator(MRP, window=200, fillna=False)
+            EMAMRP24 = ta.trend.ema_indicator(MRP, window=150, fillna=False)
+            ADX  = ta.trend.adx(high, low, close, window=21, fillna=False)            
+            data['PLUS_DI']=ta.trend.adx_pos(high, low, close, window=14, fillna=False).PLUS_DI()
+            data['MINUS_DI']= ta.trend.adx_neg(high, low, close, window=14, fillna=False).MINUS_DI()
+            RSI_max = close.rolling(26, min_periods=1).max()
+            RSI_min = close.rolling(18, min_periods=1).min()            
+            AD= data['AD'] = ta.volume.acc_dist_index(high, low, close, volume, fillna=False)
+            SMAAD= ta.trend.ema_indicator(AD, window=34, fillna=False)
+            
+            
+            
             data['CCI'] = ta.trend.CCIIndicator(
             high, 
             low, 
@@ -305,24 +335,8 @@ if analyze_button:
             window=cci_period
             ).cci() #calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
 
-            #data['AD'] = ta.volume.acc_dist_index(high, low, close, volume, fillna=False).cci() 
             #ta.trend.sma_indicator(close, window=12, fillna=False)
-            #ta.trend.ema_indicator(close, window=12, fillna=False)
-
-            #SMAAD
-            #AD
-            #ADX
-            #data['PLUS_DI']=ta.trend.adx_pos(high, low, close, window=14, fillna=False).PLUS_DI()
-            #data['MINUS_DI']= ta.trend.adx_neg(high, low, close, window=14, fillna=False).MINUS_DI()
-            #SMAClose10
-            #SMAClose30
-            #SMAClose40
-            #sma_based_sma200
-            #wkH52
-            #wkL52        
-            #SMAScore24     
-            #EMAMRP24  
-            #EMAOBV            
+            #ta.trend.ema_indicator(close, window=12, fillna=False)         
                 
             data['ADX'] = ta.trend.ADXIndicator(
             high, 
