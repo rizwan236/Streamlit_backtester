@@ -54,7 +54,7 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
     trades = []
     in_position, entry_price, entry_date = False, 0, None
     
-    for i in range(1, len(df)):
+    for i in range(30, len(df)):
         date = df.index[i]
         # Get scalar values using .iloc and convert to float
         close_val = float(df['Close'].iloc[i])
