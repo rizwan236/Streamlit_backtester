@@ -413,7 +413,7 @@ if analyze_button:
             current_price = float(data['Close'].iloc[-1])
             initial_price = float(data['Close'].iloc[0])
             price_change = ((current_price - initial_price) / initial_price * 100)
-            st.metric("Current Price", f"${current_price:.2f}", f"{1yr price_change:+.2f}%")
+            st.metric("Current Price", f"{current_price:.2f}", f"1yr {price_change:+.2f}%")
         
         with col2:
             total_trades = len(trades)
