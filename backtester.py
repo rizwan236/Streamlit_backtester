@@ -363,8 +363,8 @@ if analyze_button:
             data['ADX']  = ta.trend.adx(high, low, close, window=21, fillna=False)            
             data['PLUS_DI']=ta.trend.adx_pos(high, low, close, window=14, fillna=False)
             data['MINUS_DI']= ta.trend.adx_neg(high, low, close, window=14, fillna=False)
-            data['RSI_max'] = close.rolling(26, min_periods=1).max()
-            data['RSI_min'] = close.rolling(18, min_periods=1).min()            
+            data['RSI_max'] = RSI_e.rolling(26, min_periods=1).max()
+            data['RSI_min'] = RSI_e.rolling(18, min_periods=1).min()            
             AD= data['AD'] = ta.volume.acc_dist_index(high, low, close, volume, fillna=False)
             data['SMAAD']= ta.trend.ema_indicator(AD, window=34, fillna=False)
             
