@@ -66,9 +66,12 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
         cci_val = float(df['CCI'].iloc[i])
         niftyClose = float(df['niftyClose'].iloc[i])
         SMAAD = float(df['SMAAD'].iloc[i])
+        SMAAD2 = float(df['SMAAD'].iloc[i-2])
         AD = float(df['AD'].iloc[i])
         ADX= float(df['ADX'].iloc[i])
+        ADX3= float(df['ADX'].iloc[i-3])
         PLUS_DI= float(df['PLUS_DI'].iloc[i])
+        PLUS_DI3= float(df['PLUS_DI'].iloc[i-3])
         MINUS_DI= float(df['MINUS_DI'].iloc[i])
         MOMScore = float(df['MOMScore'].iloc[i])
         weighted_excessMR = float(df['weighted_excessMR'].iloc[i])
@@ -81,12 +84,13 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
         SMAClose10= float(df['SMAClose10'].iloc[i])
         SMAClose30= float(df['SMAClose30'].iloc[i])
         SMAClose40= float(df['SMAClose40'].iloc[i])
+        SMAClose40_21= float(df['SMAClose40'].iloc[i-21])
         sma_based_sma200= float(df['sma_based_sma200'].iloc[i])
         wkH52= float(df['wkH52'].iloc[i])
         wkL52= float(df['wkL52'].iloc[i])
         SMA_200C = float(df['SMA_200C'].iloc[i])
         MRP =float(df['MRP'].iloc[i])
-        OBV=float(df['OBV'].iloc[i])
+        #OBV=float(df['OBV'].iloc[i])
         MOMScore =float(df['MOMScore'].iloc[i])
         RSI_e =float(df['RSI_e'].iloc[i])
         weighted_excessMR =float(df['weighted_excessMR'].iloc[i])
@@ -96,12 +100,13 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
         
 
         #if ctx.bars >= 250 and ctx.indicator("HT_TRENDMODE")[-1] >= 1 and ctx.indicator("LINEARREG_SLOPE_OBV")[-1] > 2 and ctx.niftyClose[-1] > ctx.indicator("niftyClosewkH52")[-1] * 0.0 and ctx.niftyClose[-1]*100 > ctx.indicator("SMAniftyClose10")[-1]*10 > ctx.indicator("SMAniftyClose30")[-1]*0 and ctx.indicator("SMAAD")[-2] * 1.0 < ctx.AD[-1] and ctx.indicator("ADX")[-3] < ctx.indicator("ADX")[-1] > 25 and ctx.indicator("PLUS_DI")[-1] > ctx.indicator("PLUS_DI")[-3] and (ctx.indicator("PLUS_DI")[-1] - ctx.indicator("MINUS_DI")[-1]) > 15 and ctx.volume[-90] >= 1000 and ctx.volume[-30] >= 1000 and ctx.volume[-3] >= 1000 and (0 != ctx.MOMScore[-1] > 1.5 or 0 != ctx.weighted_excessMR[-1] > 0.4) and ctx.indicator("SMAScore24")[-1] > -10 and (ctx.ST[-1] == 1 and ctx.indicator("EMAMRP24")[-1] < ctx.MRP[-1] and ctx.indicator("EMAOBV")[-1] * 1.0 < ctx.OBV[-1] and ctx.close[-1] > ctx.indicator("SMAClose10")[-1] > ctx.indicator("SMAClose30")[-1] > ctx.indicator("SMAClose40")[-1] and ctx.indicator("SMAClose40")[-21] < ctx.indicator("SMAClose40")[-1] > ctx.indicator("sma_based_sma200")[-1] and ctx.indicator("RSI_14")[-1] > 50 and ctx.close[-1] > ctx.indicator("wkH52")[-1] * .75 and ctx.close[-1] > ctx.indicator("wkL52")[-1] * 1.35):
-        if not in_position and rsi_val > buy_rsi and cci_val > buy_cci  and ST ==1:
-        #if not in_position and  ctx.indicator("SMAAD")[-2] * 1.0 < ctx.AD[-1] and ctx.indicator("ADX")[-3] < ctx.indicator("ADX")[-1] > 25 and ctx.indicator("PLUS_DI")[-1] > ctx.indicator("PLUS_DI")[-3] and (ctx.indicator("PLUS_DI")[-1] - ctx.indicator("MINUS_DI")[-1]) > 15 and ctx.volume[-90] >= 1000 and ctx.volume[-30] >= 1000 and ctx.volume[-3] >= 1000 and (0 != ctx.MOMScore[-1] > 1.5 or 0 != ctx.weighted_excessMR[-1] > 0.4) and ctx.indicator("SMAScore24")[-1] > -10 and (ctx.ST[-1] == 1 and ctx.indicator("EMAMRP24")[-1] < ctx.MRP[-1] and ctx.indicator("EMAOBV")[-1] * 1.0 < ctx.OBV[-1] and ctx.close[-1] > ctx.indicator("SMAClose10")[-1] > ctx.indicator("SMAClose30")[-1] > ctx.indicator("SMAClose40")[-1] and ctx.indicator("SMAClose40")[-21] < ctx.indicator("SMAClose40")[-1] > ctx.indicator("sma_based_sma200")[-1] and ctx.indicator("RSI_14")[-1] > 50 and ctx.close[-1] > ctx.indicator("wkH52")[-1] * .75 and ctx.close[-1] > ctx.indicator("wkL52")[-1] * 1.35):    
+        #if not in_position and rsi_val > buy_rsi and cci_val > buy_cci  and ST ==1:
+        if not in_position and  SMAAD2 * 1.0 < AD and ADX3 < ADX > 25 and PLUS_DI > PLUS_DI3 and (PLUS_DI- MINUS_DI) > 15 and volume_val >= 500 and (0 != MOMScore > 1.5 or 0 != weighted_excessMR > 0.4) and SMAScore24 > -10 and (ST == 1 and EMAMRP24 < MRP and EMAOBV * 1.0 < OBV and close_val > SMAClose10 > SMAClose30 > SMAClose40 and SMAClose40_21 < SMAClose40 > sma_based_sma200 and RSI_e > 50 and close_val > wkH52 * .75 and close_val > wkL52 * 1.35):    
             in_position, entry_price, entry_date = True, close_val, date
             df.loc[date, 'Signal'] = 'BUY'
         #if (ctx.bars >= 250 and (ctx.close[-1] < ctx.indicator("SMAClose40")[-1] and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15)) or ((0 != ctx.MOMScore[-1] < 1.5 or 0 != ctx.weighted_excessMR[-1] < 0.4 or ctx.DD_LOG[-1] > 25 or ctx.indicator("EMAOBV")[-1] * 0.95 > ctx.OBV[-1]) and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15 and (ctx.indicator("RSI_20")[-1] < 35 or ctx.indicator("CCI_34")[-1] < 0 or ctx.indicator("SMAClose10")[-1] < ctx.indicator("SMAClose30")[-1])):    
-        elif in_position and rsi_val < sell_rsi and cci_val < sell_cci :
+        #elif in_position and rsi_val < sell_rsi and cci_val < sell_cci :
+        elif in_position and (close_val < SMAClose40 and ST == -1 and DD_LOG > 15)) or ((0 != MOMScore< 1.5 or 0 != weighted_excessMR < 0.4 or DD_LOG > 25 or EMAOBV * 0.95 > OBV) and ST == -1 and DD_LOG > 15 and (RSI_e < 35 or cci_val < 0 or SMAClose10 < SMAClose30)):    
             pnl = ((close_val - entry_price) / entry_price * 100)
             holding = (date - entry_date).days
             df.loc[date, 'Signal'] = 'SELL'
@@ -278,7 +283,7 @@ with st.sidebar:
     # Indicator periods
     st.subheader("⚙️ Indicator Settings")
     #rsi_period = st.slider("RSI Period", 5, 30, 14, key='rsi')
-    rsi_period = st.number_input("RSI Period",min_value=7,max_value= 64, value= 14,key="rsi_input")
+    rsi_period = st.number_input("RSI Period",min_value=7,max_value= 64, value=21,key="rsi_input")
     #cci_period = st.slider("CCI Period", 5, 30, 20, key='cci')
     cci_period = st.number_input("CCI Period",min_value=7,max_value= 42, value=34, key="cci_input")
     #adx_period = st.slider("ADX Period", 5, 30, 14, key='adx')
