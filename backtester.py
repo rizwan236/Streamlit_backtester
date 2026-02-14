@@ -199,10 +199,23 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
 
     # Use it:
     #ax1 = axes[0]
-    plot_candlestick(ax1, df)
+    #plot_candlestick(ax1, df)
     #ax1.set_ylabel('Price')
     #ax1.set_title('Candlestick Chart')
-    #ax1.grid(True, alpha=0.3)        
+    #ax1.grid(True, alpha=0.3)    
+    for idx, (date, row) in enumerate(df.iterrows()):
+        open, high, low, close = row['Open'], row['High'], row['Low'], row['Close']
+        color = color_up if close >= open else color_down
+        
+        # Draw the candle body (rectangle from open to close)
+        body_bottom = min(open, close)
+        body_height = abs(close - open)
+        rect = plt.Rectangle((idx - width/2, body_bottom), width, body_height,
+                              facecolor=color, edgecolor=color, alpha=0.8)
+        ax1.add_patch(rect)
+        
+        # Draw the wick (vertical line from low to high)
+        ax1.plot([idx, idx], [low, high], color='black', linewidth=1)    
     
     
     #mpf.plot(df, type='candle', ax=ax1, style='charles', show_nontrading=False)
