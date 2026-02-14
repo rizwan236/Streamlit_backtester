@@ -269,7 +269,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
     ax1_vol.plot(df.index, obv_norm,
                  color='grey', linewidth=1.5, label='OBV (norm)')
 
-    ax1_vol.set_ylim(0, 250)
+    ax1_vol.set_ylim(0, 400)
     ax1_vol.set_yticks([])
 
     # ==========================================================
