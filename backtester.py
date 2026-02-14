@@ -343,7 +343,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
     # Formatting
     # ==========================================================
     ax5.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-    fig.autofmt_xdate(rotation=20)
+    fig.autofmt_xdate(rotation=10)
 
     fig.suptitle(f"{symbol} Technical Analysis Dashboard",
                  fontsize=14, fontweight='bold')
