@@ -203,9 +203,10 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     #ax1.set_ylabel('Price')
     #ax1.set_title('Candlestick Chart')
     #ax1.grid(True, alpha=0.3)    
+   # width=0.6, color_up='green', color_down='red'
     for idx, (date, row) in enumerate(df.iterrows()):
         open, high, low, close = row['Open'], row['High'], row['Low'], row['Close']
-        color = color_up if close >= open else color_down
+        color = green if close >= open else red
         
         # Draw the candle body (rectangle from open to close)
         body_bottom = min(open, close)
