@@ -155,7 +155,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     
     # Create figure with subplots
     fig, axes = plt.subplots(5, 1, figsize=(14, 10), 
-                             gridspec_kw={'height_ratios': [2, 1, 1, 1, 1]},
+                             gridspec_kw={'height_ratios': [4, 1, 1, 1, 1]},
                              sharex=True)
     
     plt.style.use('seaborn-v0_8-whitegrid')
