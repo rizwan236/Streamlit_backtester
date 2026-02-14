@@ -171,9 +171,189 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
     return df, trades
 
 
+def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
+    """
+    Technical Analysis Dashboard with Candlestick, Indicators and Signals
+    """
+
+    df = df.copy()
+
+    # Ensure datetime index
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+
+    df.sort_index(inplace=True)
+
+    plt.style.use("seaborn-v0_8-whitegrid")
+
+    fig, axes = plt.subplots(
+        5, 1,
+        figsize=(14, 12),
+        gridspec_kw={'height_ratios': [4, 1, 1, 1, 1]},
+        sharex=True
+    )
+
+    # ==========================================================
+    # 1️⃣ PRICE + CANDLESTICK
+    # ==========================================================
+    ax1 = axes[0]
+
+    # Convert dates for rectangle plotting
+    dates = mdates.date2num(df.index)
+    width = 0.6
+
+    for date_num, (_, row) in zip(dates, df.iterrows()):
+        o, h, l, c = row['Open'], row['High'], row['Low'], row['Close']
+        color = 'green' if c >= o else 'red'
+
+        body_bottom = min(o, c)
+        body_height = abs(c - o)
+
+        rect = Rectangle(
+            (date_num - width / 2, body_bottom),
+            width,
+            body_height if body_height != 0 else 0.001,
+            facecolor=color,
+            edgecolor=color,
+            alpha=0.8
+        )
+        ax1.add_patch(rect)
+
+        ax1.plot([date_num, date_num], [l, h], color='black', linewidth=1)
+
+    # Moving averages (without modifying df)
+    sma200 = df['sma_based_sma200'].replace(0, np.nan)
+
+    ax1.plot(df.index, df['SMAClose10'], label='SMA 10', linewidth=1.5)
+    ax1.plot(df.index, df['SMAClose30'], label='SMA 30', linewidth=1.5)
+    ax1.plot(df.index, df['SMAClose40'], label='SMA 40', linewidth=1.5)
+    ax1.plot(df.index, sma200, label='SMA 200', linewidth=2, color='red')
+
+    # Buy / Sell markers
+    buy_mask = df['Signal'] == 'BUY'
+    sell_mask = df['Signal'].str.contains('SELL', na=False)
+
+    ax1.scatter(df.index[buy_mask], df.loc[buy_mask, 'Close'],
+                marker='^', color='green', s=100, label='BUY', zorder=5)
+
+    ax1.scatter(df.index[sell_mask], df.loc[sell_mask, 'Close'],
+                marker='v', color='red', s=100, label='SELL', zorder=5)
+
+    ax1.set_ylabel("Price", fontweight='bold')
+    ax1.set_title(f"{symbol} - Price & Signals", fontweight='bold')
+    ax1.legend(loc='best')
+    ax1.grid(alpha=0.3)
+
+    # Fix date axis
+    ax1.xaxis_date()
+
+    # ==========================================================
+    # Volume + OBV (Normalized safely)
+    # ==========================================================
+    ax1_vol = ax1.twinx()
+
+    volume_max = df['Volume'].max()
+    obv_range = df['OBV'].max() - df['OBV'].min()
+
+    volume_norm = df['Volume'] / volume_max * 100 if volume_max != 0 else df['Volume']
+    obv_norm = (
+        (df['OBV'] - df['OBV'].min()) / obv_range * 100
+        if obv_range != 0 else df['OBV']
+    )
+
+    volume_colors = np.where(df['Close'].diff() >= 0, 'green', 'red')
+
+    ax1_vol.bar(df.index, volume_norm,
+                color=volume_colors, alpha=0.3, width=1)
+
+    ax1_vol.plot(df.index, obv_norm,
+                 color='grey', linewidth=1.5, label='OBV (norm)')
+
+    ax1_vol.set_ylim(0, 120)
+    ax1_vol.set_yticks([])
+
+    # ==========================================================
+    # 2️⃣ RSI
+    # ==========================================================
+    ax2 = axes[1]
+    ax2.plot(df.index, df['RSI'], color='purple')
+
+    ax2.axhline(buy_rsi, linestyle='--', color='green')
+    ax2.axhline(sell_rsi, linestyle='--', color='red')
+    ax2.axhline(50, linestyle=':', color='gray')
+
+    ax2.fill_between(df.index, buy_rsi, 100, alpha=0.1, color='green')
+    ax2.fill_between(df.index, 0, sell_rsi, alpha=0.1, color='red')
+
+    ax2.set_ylim(0, 100)
+    ax2.set_ylabel("RSI", fontweight='bold')
+    ax2.set_title("RSI", fontweight='bold')
+    ax2.grid(alpha=0.3)
+
+    # ==========================================================
+    # 3️⃣ CCI
+    # ==========================================================
+    ax3 = axes[2]
+    ax3.plot(df.index, df['CCI'], color='orange')
+
+    ax3.axhline(buy_cci, linestyle='--', color='green')
+    ax3.axhline(sell_cci, linestyle='--', color='red')
+    ax3.axhline(0, linestyle=':', color='gray')
+
+    ax3.set_ylabel("CCI", fontweight='bold')
+    ax3.set_title("CCI", fontweight='bold')
+    ax3.grid(alpha=0.3)
+
+    # ==========================================================
+    # 4️⃣ MACD
+    # ==========================================================
+    ax4 = axes[3]
+
+    ax4.plot(df.index, df['MACD'], label='MACD')
+    ax4.plot(df.index, df['MACD_signal'], label='Signal')
+
+    colors = np.where(df['MACD_hist'] >= 0, 'green', 'red')
+    ax4.bar(df.index, df['MACD_hist'], alpha=0.5, color=colors)
+
+    ax4.axhline(0, color='gray')
+    ax4.legend(fontsize=8)
+    ax4.set_ylabel("MACD", fontweight='bold')
+    ax4.set_title("MACD", fontweight='bold')
+    ax4.grid(alpha=0.3)
+
+    # ==========================================================
+    # 5️⃣ ADX + Drawdown
+    # ==========================================================
+    ax5 = axes[4]
+
+    ax5.plot(df.index, df['ADX'], label='ADX')
+    ax5.plot(df.index, df['PLUS_DI'], label='+DI', color='green')
+    ax5.plot(df.index, df['MINUS_DI'], label='-DI', color='red')
+    ax5.plot(df.index, df['Drawdown'], label='Drawdown', color='black', alpha=0.7)
+
+    ax5.axhline(25, linestyle='--', color='orange')
+    ax5.axhline(0, color='gray')
+
+    ax5.legend(fontsize=8)
+    ax5.set_ylabel("ADX / DD", fontweight='bold')
+    ax5.set_title("ADX & Drawdown", fontweight='bold')
+    ax5.grid(alpha=0.3)
+
+    # ==========================================================
+    # Formatting
+    # ==========================================================
+    ax5.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+    fig.autofmt_xdate(rotation=20)
+
+    fig.suptitle(f"{symbol} Technical Analysis Dashboard",
+                 fontsize=14, fontweight='bold')
+
+    plt.tight_layout()
+    return fig
+
 
 # Chart creation
-def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):    
+def create_chart1(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):    
     """
     Simplified matplotlib chart that avoids candlestick plotting issues
     """
@@ -205,6 +385,8 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     #ax1.grid(True, alpha=0.3)    
    # width=0.6, color_up='green', color_down='red'
     width=0.6
+    import matplotlib.dates as mdates
+    dates = mdates.date2num(df.index)
     for idx, (date, row) in enumerate(df.iterrows()):
         open, high, low, close = row['Open'], row['High'], row['Low'], row['Close']
         color = 'green' if close >= open else 'red'
@@ -219,9 +401,10 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
         # Draw the wick (vertical line from low to high)
         ax1.plot([idx, idx], [low, high], color='black', linewidth=1)    
 
+    ax1.xaxis_date()
     #ax1.set_xticks(range(len(df)))
     #ax1.set_xticklabels([d.strftime('%Y-%m-%d') for d in df.index], rotation=45)
-    ax1.set_xlim(-0.5, len(df)-0.5)
+    #ax1.set_xlim(-0.5, len(df)-0.5)
     
     #mpf.plot(df, type='candle', ax=ax1, style='charles', show_nontrading=False)
     
