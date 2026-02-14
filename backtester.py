@@ -201,6 +201,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     ax1_vol.set_ylim(0, combined_max)
     '''
     ax1_vol = ax1.twinx()
+    volume_colors = df['Close'].diff().apply(lambda x: 'green' if x >= 0 else 'red')    
     volume_norm = df['Volume'] / df['Volume'].max() * 100
     obc_norm = (df['OBV'] - df['OBV'].min()) / (df['OBV'].max() - df['OBV'].min()) * 100
     
