@@ -236,8 +236,12 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     
     # 5. ADX & Drawdown Chart
     ax5 = axes[4]
-    ax5.plot(df.index, df['ADX'], color='purple', linewidth=1.5, label='ADX')
-    ax5.plot(df.index, df['Drawdown'], color='red', linewidth=1.5, label='Drawdown', alpha=0.7)
+    ax5.plot(df.index, df['ADX'], color='blue', linewidth=1.5, label='ADX')
+    # +DI (green)
+    ax5.plot(df.index, df['PLUS_DI'], color='green', linewidth=1, label='+DI')
+    # -DI (blue)
+    ax5.plot(df.index, df['MINUS_DI'], color='red', linewidth=1, label='-DI')    
+    ax5.plot(df.index, df['Drawdown'], color='black', linewidth=1.5, label='Drawdown', alpha=0.7)
     ax5.axhline(y=25, color='orange', linestyle='--', alpha=0.7, label='Strong Trend')
     ax5.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
     ax5.set_ylabel('ADX / Drawdown', fontweight='bold')
