@@ -27,7 +27,7 @@ try:
     
 except:
     POPULAR_SYMBOLS = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX","JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
-    top_symbols =[]
+    top_symbols =["AAPL"]
     
 
 def calculate_drawdown(prices):
@@ -261,6 +261,13 @@ st.title("📈 Technical Analysis Dashboard")
 # Sidebar
 with st.sidebar:
     st.header("⚙️ Settings")
+
+    selected_symbol = st.selectbox(
+        "Stock Symbol",
+        options=top_symbols,
+        #index=POPULAR_SYMBOLS.index("GOOGL") if "GOOGL" in POPULAR_SYMBOLS else 0,
+        help="list of Top 25 higest score Symbols"
+    )    
     
     # Symbol selection
     selected_symbol = st.selectbox(
