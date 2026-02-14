@@ -27,6 +27,7 @@ try:
     
 except:
     POPULAR_SYMBOLS = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX","JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
+    top_symbols =[]
     
 
 def calculate_drawdown(prices):
