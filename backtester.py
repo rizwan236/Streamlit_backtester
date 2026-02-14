@@ -331,7 +331,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
     ax5.plot(df.index, df['MINUS_DI'], label='-DI', color='red')
     ax5.plot(df.index, df['Drawdown'], label='Drawdown', color='black', alpha=0.7)
 
-    ax5.axhline(25, linestyle='--', color='gold')
+    ax5.axhline(25, linestyle='--', color='purple')
     ax5.axhline(0, color='gray')
 
     ax5.legend(fontsize=8)
