@@ -51,8 +51,8 @@ def plot_candlestick(ax, df, width=0.6, color_up='green', color_down='red'):
     
     # Set x-axis ticks to show dates (optional)
     ax.set_xticks(range(len(df)))
-    ax.set_xticklabels([d.strftime('%Y-%m-%d') for d in df.index], rotation=45)
-    ax.set_xlim(-0.5, len(df)-0.5)
+    #ax.set_xticklabels([d.strftime('%Y-%m-%d') for d in df.index], rotation=45)
+    #ax.set_xlim(-0.5, len(df)-0.5)
 
 
 def calculate_drawdown(prices):
