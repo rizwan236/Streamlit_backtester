@@ -189,16 +189,16 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     
     ax1_vol.bar(
         df.index,
-        df['Volume'],
+        df['Volume']/1000,
         color=volume_colors,
         width=1.0,
         alpha=0.3,
         zorder=1
     )
-    ax1_vol.plot(df.index, df['OBV'], color='black', linewidth=1.5, label='OBV', zorder=2)
+    ax1_vol.plot(df.index, df['OBV']/1000, color='black', linewidth=1.5, label='OBV', zorder=2)
     ax1_vol.set_yticks([])
     #ax1_vol.set_ylim(0, df['Volume'].max() * 4)  
-    combined_max = max(df['Volume'].max(), df['OBV'].max()) * 1.1
+    combined_max = max(df['Volume'].max(), df['OBV'].max()) /1000
     ax1_vol.set_ylim(0, combined_max)
     
     # 2. RSI Chart
