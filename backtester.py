@@ -387,7 +387,7 @@ if analyze_button:
             
             data['RSI'] = ta.momentum.RSIIndicator(close, window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
             data['RSI_20'] = ta.momentum.RSIIndicator(close, window=24).rsi() 
-            data['sma_based_sma200'] = ta.trend.sma_indicator(SMA_200C, window=50, fillna=False)
+            data['sma_based_sma200'] = ta.trend.sma_indicator(SMA_200C, window=42, fillna=False)
             data['SMAScore24'] = ta.trend.sma_indicator(MOMScore, window=7, fillna=False)
             data['EMAOBV']= ta.trend.sma_indicator(OBV, window=42, fillna=False)
             data['EMAClose12']= ta.trend.ema_indicator(close, window=50, fillna=False)
