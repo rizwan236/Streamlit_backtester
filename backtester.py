@@ -282,8 +282,8 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
     ax2.axhline(sell_rsi, linestyle='--', color='red')
     ax2.axhline(50, linestyle=':', color='gray')
 
-    ax2.fill_between(df.index, buy_rsi, 100, alpha=0.1, color='green')
-    ax2.fill_between(df.index, 0, sell_rsi, alpha=0.1, color='red')
+    ax2.fill_between(df.index, 70, 100, alpha=0.1, color='green')
+    ax2.fill_between(df.index, 0, 30, alpha=0.1, color='red')
 
     ax2.set_ylim(0, 100)
     ax2.set_ylabel("RSI", fontweight='bold')
