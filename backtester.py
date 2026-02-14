@@ -8,6 +8,7 @@ import traceback
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
+import mplfinance as mpf
 
 #[Symbol, Date, Close, High, Low, Open, Volume, Stock_Cumulative_Return, MRP, MRP13, MRP25, Exp, DD_LOG, DD, DD_PCT, ta_DD_LOG, ST, OBV, AD, Beta, weighted_excessMR, weighted_MR, Score, SMA_200C, RS
 #I_e, niftyOpen, niftyHigh, niftyLow, niftyClose]
@@ -162,7 +163,8 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     
     # 1. Price Chart (Simplified - just close price)
     ax1 = axes[0]
-    ax1.plot(df.index, df['Close'], color='blue', linewidth=2, label='Close Price')
+    #ax1.plot(df.index, df['Close'], color='blue', linewidth=2, label='Close Price')
+    mpf.plot(df, type='candle', ax=ax1, style='charles', show_nontrading=False)
     
     # Mark buy/sell signals
     buy_mask = df['Signal'] == 'BUY'
