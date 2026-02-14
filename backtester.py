@@ -145,8 +145,121 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
     
     return df, trades
 
+
+def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
+    """
+    Creates a 5-panel technical analysis chart.
+    Top panel uses mplfinance candlesticks with volume/OBV overlay.
+    """
+    # Ensure index is DatetimeIndex
+    if not isinstance(df.index, pd.DatetimeIndex):
+        df.index = pd.to_datetime(df.index)
+
+    # Create figure with subplots
+    fig, axes = plt.subplots(5, 1, figsize=(14, 10),
+                             gridspec_kw={'height_ratios': [4, 1, 1, 1, 1]},
+                             sharex=True)
+    plt.style.use('seaborn-v0_8-whitegrid')
+
+    # ------------------- 1. Price Chart (Candlesticks) -------------------
+    ax1 = axes[0]
+
+    # Plot candlesticks using mplfinance on the existing axis
+    mpf.plot(df, type='candle', ax=ax1, style='charles',
+             show_nontrading=False, xrotation=0, volume=False)
+
+    # Mark buy/sell signals
+    buy_mask = df['Signal'] == 'BUY'
+    sell_mask = df['Signal'].str.contains('SELL', na=False)
+
+    if buy_mask.any():
+        ax1.scatter(df.index[buy_mask], df.loc[buy_mask, 'Close'],
+                    marker='^', color='green', s=100, label='BUY', zorder=5)
+    if sell_mask.any():
+        ax1.scatter(df.index[sell_mask], df.loc[sell_mask, 'Close'],
+                    marker='v', color='red', s=100, label='SELL', zorder=5)
+
+    ax1.set_ylabel('Price ($)', fontweight='bold')
+    ax1.set_title(f'{symbol} - Price with Trading Signals', fontsize=12, fontweight='bold')
+    ax1.legend(loc='best')
+    ax1.grid(True, alpha=0.3)
+
+    # ---------- Volume & OBV overlay (normalised) ----------
+    ax1_vol = ax1.twinx()
+    volume_colors = df['Close'].diff().apply(lambda x: 'green' if x >= 0 else 'red')
+
+    # Normalise both Volume and OBV to percentage of their maximum
+    volume_norm = df['Volume'] / df['Volume'].max() * 100
+    obv_norm = (df['OBV'] - df['OBV'].min()) / (df['OBV'].max() - df['OBV'].min()) * 100
+
+    ax1_vol.bar(df.index, volume_norm, color=volume_colors,
+                width=1.0, alpha=0.3, zorder=1)
+    ax1_vol.plot(df.index, obv_norm, color='grey', linewidth=1.5,
+                 label='OBV (norm)', zorder=2)
+    ax1_vol.set_ylabel('Normalised %', fontweight='bold')
+    ax1_vol.set_ylim(0, 250)  # gives headroom above 100%
+
+    # ------------------- 2. RSI -------------------
+    ax2 = axes[1]
+    ax2.plot(df.index, df['RSI'], color='purple', linewidth=1.5)
+    ax2.axhline(y=buy_rsi, color='green', linestyle='--', alpha=0.7)
+    ax2.axhline(y=sell_rsi, color='red', linestyle='--', alpha=0.7)
+    ax2.axhline(y=50, color='gray', linestyle=':', alpha=0.5)
+    ax2.fill_between(df.index, buy_rsi, 100, alpha=0.1, color='green')
+    ax2.fill_between(df.index, 0, sell_rsi, alpha=0.1, color='red')
+    ax2.set_ylabel('RSI', fontweight='bold')
+    ax2.set_title('RSI Indicator', fontsize=10, fontweight='bold')
+    ax2.set_ylim(0, 100)
+    ax2.grid(True, alpha=0.3)
+
+    # ------------------- 3. CCI -------------------
+    ax3 = axes[2]
+    ax3.plot(df.index, df['CCI'], color='orange', linewidth=1.5)
+    ax3.axhline(y=buy_cci, color='green', linestyle='--', alpha=0.7)
+    ax3.axhline(y=sell_cci, color='red', linestyle='--', alpha=0.7)
+    ax3.axhline(y=0, color='gray', linestyle=':', alpha=0.5)
+    ax3.set_ylabel('CCI', fontweight='bold')
+    ax3.set_title('CCI Indicator', fontsize=10, fontweight='bold')
+    ax3.grid(True, alpha=0.3)
+
+    # ------------------- 4. MACD -------------------
+    ax4 = axes[3]
+    ax4.plot(df.index, df['MACD'], color='blue', linewidth=1.5, label='MACD')
+    ax4.plot(df.index, df['MACD_signal'], color='red', linewidth=1.5, label='Signal')
+    ax4.bar(df.index, df['MACD_hist'], alpha=0.5, width=1,
+            color=['green' if h >= 0 else 'red' for h in df['MACD_hist']])
+    ax4.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
+    ax4.set_ylabel('MACD', fontweight='bold')
+    ax4.set_title('MACD Indicator', fontsize=10, fontweight='bold')
+    ax4.legend(loc='best', fontsize=8)
+    ax4.grid(True, alpha=0.3)
+
+    # ------------------- 5. ADX & Drawdown -------------------
+    ax5 = axes[4]
+    ax5.plot(df.index, df['ADX'], color='blue', linewidth=1.5, label='ADX')
+    ax5.plot(df.index, df['PLUS_DI'], color='green', linewidth=1, label='+DI')
+    ax5.plot(df.index, df['MINUS_DI'], color='red', linewidth=1, label='-DI')
+    ax5.plot(df.index, df['Drawdown'], color='black', linewidth=1.5, label='Drawdown', alpha=0.7)
+    ax5.axhline(y=25, color='orange', linestyle='--', alpha=0.7, label='Strong Trend')
+    ax5.axhline(y=0, color='gray', linestyle='-', alpha=0.5)
+    ax5.set_ylabel('ADX / Drawdown', fontweight='bold')
+    ax5.set_title('ADX & Drawdown', fontsize=10, fontweight='bold')
+    ax5.legend(loc='best', fontsize=8)
+    ax5.grid(True, alpha=0.3)
+
+    # Format x-axis
+    fig.autofmt_xdate(rotation=10)
+    ax5.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
+
+    # Overall title
+    fig.suptitle(f'{symbol} Technical Analysis Dashboard', fontsize=14, fontweight='bold')
+
+    plt.tight_layout()
+    return fig
+
+
 # Chart creation
-def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):    
+def create_chart1(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):    
     """
     Simplified matplotlib chart that avoids candlestick plotting issues
     """
