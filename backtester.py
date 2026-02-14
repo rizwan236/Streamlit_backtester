@@ -8,7 +8,7 @@ import traceback
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
-import mplfinance as mpf
+#import mplfinance as mpf
 
 #[Symbol, Date, Close, High, Low, Open, Volume, Stock_Cumulative_Return, MRP, MRP13, MRP25, Exp, DD_LOG, DD, DD_PCT, ta_DD_LOG, ST, OBV, AD, Beta, weighted_excessMR, weighted_MR, Score, SMA_200C, RS
 #I_e, niftyOpen, niftyHigh, niftyLow, niftyClose]
