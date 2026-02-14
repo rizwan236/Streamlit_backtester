@@ -166,10 +166,10 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     # 1. Price Chart (Simplified - just close price)
     ax1 = axes[0]
     ax1.plot(df.index, df['Close'], color='blue', linewidth=2, label='Close Price')
-    ax1.plot(df.index, df['SMAClose10'], color='darkgreen', linewidth=2, label='Close Price')
-    ax1.plot(df.index, df['SMAClose30'], color='green', linewidth=2, label='Close Price')
-    ax1.plot(df.index, df['SMAClose40'], color='lightgreen', linewidth=2, label='Close Price')
-    ax1.plot(df.index, df['sma_based_sma200'], color='limegreen', linewidth=2, label='Close Price')
+    ax1.plot(df.index, df['SMAClose10'], color='darkgreen', linewidth=2, label='SMAClose10')
+    ax1.plot(df.index, df['SMAClose30'], color='green', linewidth=2, label='SMAClose30')
+    ax1.plot(df.index, df['SMAClose40'], color='lightgreen', linewidth=2, label='SMAClose40')
+    ax1.plot(df.index, df['sma_based_sma200'], color='limegreen', linewidth=2, label='sma_based_sma200')
     
     
     #mpf.plot(df, type='candle', ax=ax1, style='charles', show_nontrading=False)
