@@ -220,7 +220,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
         ax1.plot([idx, idx], [low, high], color='black', linewidth=1)    
 
     #ax1.set_xticks(range(len(df)))
-    ax1.set_xticklabels([d.strftime('%Y-%m-%d') for d in df.index], rotation=45)
+    #ax1.set_xticklabels([d.strftime('%Y-%m-%d') for d in df.index], rotation=45)
     ax1.set_xlim(-0.5, len(df)-0.5)
     
     #mpf.plot(df, type='candle', ax=ax1, style='charles', show_nontrading=False)
