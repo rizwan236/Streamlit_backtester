@@ -376,6 +376,7 @@ if analyze_button:
             low = pd.Series(data['Low'].values.flatten(), index=data.index)
             open_price = pd.Series(data['Open'].values.flatten(), index=data.index)
             volume = pd.Series(data['Volume'].values.flatten(), index=data.index)
+            df['SMA_200C'] = df['SMA_200C'].replace(0, np.nan)
             SMA_200C = pd.Series(data['SMA_200C'].values.flatten(), index=data.index)  
             MRP =pd.Series(data['MRP'].values.flatten(), index=data.index) 
             OBV=pd.Series(data['OBV'].values.flatten(), index=data.index) 
@@ -384,6 +385,7 @@ if analyze_button:
             weighted_excessMR =pd.Series(data['weighted_excessMR'].values.flatten(), index=data.index) 
             ST =pd.Series(data['ST'].values.flatten(), index=data.index) 
             DD_LOG =pd.Series(data['DD_LOG'].values.flatten(), index=data.index) 
+            
             
             data['RSI'] = ta.momentum.RSIIndicator(close, window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
             data['RSI_20'] = ta.momentum.RSIIndicator(close, window=24).rsi() 
