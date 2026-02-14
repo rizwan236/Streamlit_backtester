@@ -208,7 +208,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     ax1_vol.bar(df.index, volume_norm, color=volume_colors, width=1.0, alpha=0.3, zorder=1)
     ax1_vol.plot(df.index, obc_norm, color='blue', linewidth=1.5, label='OBV (norm)', zorder=2)
     ax1_vol.set_ylabel('Normalised %', fontweight='bold')
-    ax1_vol.set_ylim(0, 100)    
+    ax1_vol.set_ylim(0, 1000)    
     
     # 2. RSI Chart
     ax2 = axes[1]
