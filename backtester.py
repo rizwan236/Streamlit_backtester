@@ -263,10 +263,10 @@ with st.sidebar:
     st.header("⚙️ Settings")
 
     selected_symbol = st.selectbox(
-        "Stock Symbol",
+        "Lookup Top25 highest score Symbol",
         options=top_symbols,
         #index=POPULAR_SYMBOLS.index("GOOGL") if "GOOGL" in POPULAR_SYMBOLS else 0,
-        help="list of Top 25 higest score Symbols"
+        help="list of Top 25 highest score Symbols"
     )    
     
     # Symbol selection
