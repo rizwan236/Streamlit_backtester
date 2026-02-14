@@ -278,8 +278,8 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
     ax2 = axes[1]
     ax2.plot(df.index, df['RSI'], color='purple')
 
-    ax2.axhline(buy_rsi, linestyle='--', color='green')
-    ax2.axhline(sell_rsi, linestyle='--', color='red')
+    ax2.axhline(70, linestyle='--', color='green')
+    ax2.axhline(30, linestyle='--', color='red')
     ax2.axhline(50, linestyle=':', color='gray')
 
     ax2.fill_between(df.index, 70, 100, alpha=0.1, color='green')
@@ -296,8 +296,8 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
     ax3 = axes[2]
     ax3.plot(df.index, df['CCI'], color='orange')
 
-    ax3.axhline(buy_cci, linestyle='--', color='green')
-    ax3.axhline(sell_cci, linestyle='--', color='red')
+    ax3.axhline(0, linestyle='--', color='green')
+    ax3.axhline(0, linestyle='--', color='red')
     ax3.axhline(0, linestyle=':', color='gray')
 
     ax3.set_ylabel("CCI", fontweight='bold')
@@ -331,7 +331,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
     ax5.plot(df.index, df['MINUS_DI'], label='-DI', color='red')
     ax5.plot(df.index, df['Drawdown'], label='Drawdown', color='black', alpha=0.7)
 
-    ax5.axhline(25, linestyle='--', color='orange')
+    ax5.axhline(25, linestyle='--', color='gold')
     ax5.axhline(0, color='gray')
 
     ax5.legend(fontsize=8)
