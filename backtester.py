@@ -180,13 +180,12 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     ax1.legend(loc='best')
     ax1.grid(True, alpha=0.3)
 
+    '''
     # Volume overlay
     ax1_vol = ax1.twinx()
-    
     volume_colors = df['Close'].diff().apply(
         lambda x: 'green' if x >= 0 else 'red'
     )
-    
     ax1_vol.bar(
         df.index,
         df['Volume']/1000,
@@ -195,11 +194,20 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
         alpha=0.3,
         zorder=1
     )
-    ax1_vol.plot(df.index, df['OBV']/1000, color='black', linewidth=1.5, label='OBV', zorder=2)
+    ax1_vol.plot(df.index, df['OBV'], color='black', linewidth=1.5, label='OBV', zorder=2)
     ax1_vol.set_yticks([])
     #ax1_vol.set_ylim(0, df['Volume'].max() * 4)  
-    combined_max = max(df['Volume'].max(), df['OBV'].max()) /1000
+    combined_max = max(df['Volume'].max(), df['OBV'].max()) *1.1
     ax1_vol.set_ylim(0, combined_max)
+    '''
+    ax1_vol = ax1.twinx()
+    volume_norm = df['Volume'] / df['Volume'].max() * 100
+    obc_norm = (df['OBV'] - df['OBV'].min()) / (df['OBV'].max() - df['OBV'].min()) * 100
+    
+    ax1_vol.bar(df.index, volume_norm, color=volume_colors, width=1.0, alpha=0.3, zorder=1)
+    ax1_vol.plot(df.index, obc_norm, color='blue', linewidth=1.5, label='OBV (norm)', zorder=2)
+    ax1_vol.set_ylabel('Normalised %', fontweight='bold')
+    ax1_vol.set_ylim(0, 100)    
     
     # 2. RSI Chart
     ax2 = axes[1]
