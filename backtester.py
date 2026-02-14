@@ -240,7 +240,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol):
                 marker='v', color='red', s=100, label='SELL', zorder=5)
 
     ax1.set_ylabel("Price", fontweight='bold')
-    ax1.set_title(f"{symbol} - Price & Signals", fontweight='bold')
+    #ax1.set_title(f"{symbol} - Price & Signals", fontweight='bold')
     ax1.legend(loc='best')
     ax1.grid(alpha=0.3)
 
