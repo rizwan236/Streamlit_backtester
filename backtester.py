@@ -30,6 +30,8 @@ try:
 except:
     POPULAR_SYMBOLS = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX","JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
     top_symbols =["AAPL"]
+
+
 def plot_candlestick(ax, df, width=0.6, color_up='green', color_down='red'):
     """
     Plot candlesticks on a given axis.
@@ -50,7 +52,7 @@ def plot_candlestick(ax, df, width=0.6, color_up='green', color_down='red'):
         ax.plot([idx, idx], [low, high], color='black', linewidth=1)
     
     # Set x-axis ticks to show dates (optional)
-    ax.set_xticks(range(len(df)))
+    #ax.set_xticks(range(len(df)))
     #ax.set_xticklabels([d.strftime('%Y-%m-%d') for d in df.index], rotation=45)
     #ax.set_xlim(-0.5, len(df)-0.5)
 
