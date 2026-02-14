@@ -376,7 +376,7 @@ if analyze_button:
             low = pd.Series(data['Low'].values.flatten(), index=data.index)
             open_price = pd.Series(data['Open'].values.flatten(), index=data.index)
             volume = pd.Series(data['Volume'].values.flatten(), index=data.index)
-            df['SMA_200C'] = df['SMA_200C'].replace(0, np.nan)
+            data['SMA_200C'] = data['SMA_200C'].replace(0, np.nan)
             SMA_200C = pd.Series(data['SMA_200C'].values.flatten(), index=data.index)  
             MRP =pd.Series(data['MRP'].values.flatten(), index=data.index) 
             OBV=pd.Series(data['OBV'].values.flatten(), index=data.index) 
