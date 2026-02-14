@@ -246,7 +246,7 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     ax5.grid(True, alpha=0.3)
     
     # Format x-axis
-    fig.autofmt_xdate(rotation=45)
+    fig.autofmt_xdate(rotation=90)
     ax5.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
 
   
