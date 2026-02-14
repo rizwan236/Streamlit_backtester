@@ -109,12 +109,12 @@ def calculate_trades(df, buy_rsi, buy_cci, sell_rsi, sell_cci):
 
         #if ctx.bars >= 250 and ctx.indicator("HT_TRENDMODE")[-1] >= 1 and ctx.indicator("LINEARREG_SLOPE_OBV")[-1] > 2 and ctx.niftyClose[-1] > ctx.indicator("niftyClosewkH52")[-1] * 0.0 and ctx.niftyClose[-1]*100 > ctx.indicator("SMAniftyClose10")[-1]*10 > ctx.indicator("SMAniftyClose30")[-1]*0 and ctx.indicator("SMAAD")[-2] * 1.0 < ctx.AD[-1] and ctx.indicator("ADX")[-3] < ctx.indicator("ADX")[-1] > 25 and ctx.indicator("PLUS_DI")[-1] > ctx.indicator("PLUS_DI")[-3] and (ctx.indicator("PLUS_DI")[-1] - ctx.indicator("MINUS_DI")[-1]) > 15 and ctx.volume[-90] >= 1000 and ctx.volume[-30] >= 1000 and ctx.volume[-3] >= 1000 and (0 != ctx.MOMScore[-1] > 1.5 or 0 != ctx.weighted_excessMR[-1] > 0.4) and ctx.indicator("SMAScore24")[-1] > -10 and (ctx.ST[-1] == 1 and ctx.indicator("EMAMRP24")[-1] < ctx.MRP[-1] and ctx.indicator("EMAOBV")[-1] * 1.0 < ctx.OBV[-1] and ctx.close[-1] > ctx.indicator("SMAClose10")[-1] > ctx.indicator("SMAClose30")[-1] > ctx.indicator("SMAClose40")[-1] and ctx.indicator("SMAClose40")[-21] < ctx.indicator("SMAClose40")[-1] > ctx.indicator("sma_based_sma200")[-1] and ctx.indicator("RSI_14")[-1] > 50 and ctx.close[-1] > ctx.indicator("wkH52")[-1] * .75 and ctx.close[-1] > ctx.indicator("wkL52")[-1] * 1.35):
         #if not in_position and rsi_val > buy_rsi and cci_val > buy_cci  and ST ==1:
-        if not in_position and  SMAAD2 * 1.0 < AD and ADX3 < ADX > 25 and PLUS_DI > PLUS_DI3 and (PLUS_DI- MINUS_DI) > 15 and volume_val >= 500 and ( MOMScore > -1.5 or weighted_excessMR > -0.4)  and (ST == 1 and EMAMRP24 < MRP and EMAOBV * 1.0 < OBV and close_val > SMAClose10 > SMAClose30 > SMAClose40 and SMAClose40_21 < SMAClose40 > sma_based_sma200 and RSI_e > 50 and  RSI_min > 40 and RSI_max > 58 and close_val > wkH52 * .75 and close_val > wkL52 * 1.35):    
+        if not in_position and  SMAAD2 * 1.0 < AD and ADX3 < ADX > 25 and PLUS_DI > PLUS_DI3 and (PLUS_DI- MINUS_DI) > 15 and volume_val >= 500 and ( MOMScore > -1.5 or weighted_excessMR > -0.4)  and (ST == 1 and EMAMRP24 < MRP and EMAOBV * 1.0 < OBV and close_val > SMAClose10 > SMAClose30 > SMAClose40 and SMAClose40_21 < SMAClose40 > sma_based_sma200 and RSI_e > buy_rsi and  RSI_min > 40 and RSI_max > 58 and close_val > wkH52 * .75 and close_val > wkL52 * 1.35):    
             in_position, entry_price, entry_date = True, close_val, date
             df.loc[date, 'Signal'] = 'BUY'
         #if (ctx.bars >= 250 and (ctx.close[-1] < ctx.indicator("SMAClose40")[-1] and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15)) or ((0 != ctx.MOMScore[-1] < 1.5 or 0 != ctx.weighted_excessMR[-1] < 0.4 or ctx.DD_LOG[-1] > 25 or ctx.indicator("EMAOBV")[-1] * 0.95 > ctx.OBV[-1]) and ctx.ST[-1] == -1 and ctx.DD_LOG[-1] > 15 and (ctx.indicator("RSI_20")[-1] < 35 or ctx.indicator("CCI_34")[-1] < 0 or ctx.indicator("SMAClose10")[-1] < ctx.indicator("SMAClose30")[-1])):    
         #elif in_position and rsi_val < sell_rsi and cci_val < sell_cci :
-        elif in_position and ((close_val < SMAClose40 and ST == -1 and DD_LOG > 15) or (( MOMScore < 1.5 or weighted_excessMR < 0.4 or DD_LOG > 25 or EMAOBV * 0.95 > OBV) and ST == -1 and DD_LOG > 15 and (RSI_e < 35 or cci_val < 0 or SMAClose10 < SMAClose30))):    
+        elif in_position and ((close_val < SMAClose40 and ST == -1 and DD_LOG > 15) or (( MOMScore < 1.5 or weighted_excessMR < 0.4 or DD_LOG > 25 or EMAOBV * 0.95 > OBV) and ST == -1 and DD_LOG > 15 and (sell_rsi < 35 or cci_val < 0 or SMAClose10 < SMAClose30))):    
             pnl = ((close_val - entry_price) / entry_price * 100) #if entry_price !=0 else 0
             holding = (date - entry_date).days
             df.loc[date, 'Signal'] = 'SELL'
@@ -289,7 +289,7 @@ with st.sidebar:
     col1, col2 = st.columns(2)
     with col1:
         buy_rsi = st.number_input("Buy RSI >", 0, 100, 50)
-        sell_rsi = st.number_input("Sell RSI <", 0, 100, 50)
+        sell_rsi = st.number_input("Sell RSI <", 0, 100, 35)
     with col2:
         buy_cci = st.number_input("Buy CCI >", -100, 100, 0)
         sell_cci = st.number_input("Sell CCI <", -100, 100, 0)
