@@ -19,9 +19,12 @@ st.set_page_config(page_title="Tech Analysis", layout="wide", initial_sidebar_st
 try:
     combined_data = pd.read_pickle(
         r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
-    print(combined_data.columns.tolist())
-    
+    #print(combined_data.columns.tolist())
     POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
+    latest_data = combined_data.groupby("Symbol").tail(1)
+    top_25 = latest_data.nlargest(25, 'Score')[['Symbol', 'Score']]
+    top_symbols = top_25['Symbol'].tolist()
+    
 except:
     POPULAR_SYMBOLS = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX","JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
     
