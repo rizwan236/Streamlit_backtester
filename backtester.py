@@ -30,7 +30,30 @@ try:
 except:
     POPULAR_SYMBOLS = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX","JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
     top_symbols =["AAPL"]
+def plot_candlestick(ax, df, width=0.6, color_up='green', color_down='red'):
+    """
+    Plot candlesticks on a given axis.
+    df must have columns: Open, High, Low, Close, and a datetime index.
+    """
+    for idx, (date, row) in enumerate(df.iterrows()):
+        open, high, low, close = row['Open'], row['High'], row['Low'], row['Close']
+        color = color_up if close >= open else color_down
+        
+        # Draw the candle body (rectangle from open to close)
+        body_bottom = min(open, close)
+        body_height = abs(close - open)
+        rect = plt.Rectangle((idx - width/2, body_bottom), width, body_height,
+                              facecolor=color, edgecolor=color, alpha=0.8)
+        ax.add_patch(rect)
+        
+        # Draw the wick (vertical line from low to high)
+        ax.plot([idx, idx], [low, high], color='black', linewidth=1)
     
+    # Set x-axis ticks to show dates (optional)
+    ax.set_xticks(range(len(df)))
+    ax.set_xticklabels([d.strftime('%Y-%m-%d') for d in df.index], rotation=45)
+    ax.set_xlim(-0.5, len(df)-0.5)
+
 
 def calculate_drawdown(prices):
     """Calculate drawdown using pandas operations"""
@@ -165,12 +188,19 @@ def create_chart(df, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,):
     
     # 1. Price Chart (Simplified - just close price)
     ax1 = axes[0]
-    ax1.plot(df.index, df['Close'], color='blue', linewidth=2, label='Close Price')
+    #ax1.plot(df.index, df['Close'], color='blue', linewidth=2, label='Close Price')
     ax1.plot(df.index, df['SMAClose10'], color='green', linewidth=2, label='SMAClose10')
     ax1.plot(df.index, df['SMAClose30'], color='yellow', linewidth=2, label='SMAClose30')
     ax1.plot(df.index, df['SMAClose40'], color='pink', linewidth=2, label='SMAClose40')
     df['sma_based_sma200'] = df['sma_based_sma200'].replace(0, np.nan)
     ax1.plot(df.index, df['sma_based_sma200'], color='red', linewidth=2, label='sma_based_sma200')
+
+    # Use it:
+    #ax1 = axes[0]
+    plot_candlestick(ax1, df)
+    #ax1.set_ylabel('Price')
+    #ax1.set_title('Candlestick Chart')
+    #ax1.grid(True, alpha=0.3)        
     
     
     #mpf.plot(df, type='candle', ax=ax1, style='charles', show_nontrading=False)
