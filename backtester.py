@@ -927,6 +927,29 @@ with tab2:
             theme="streamlit"
         )
 
+        # -----------------------------
+    # Get Filtered Data
+    # -----------------------------
+    filtered_df = pd.DataFrame(grid_response["data"])
+
+    st.write(f"Showing {len(filtered_df)} filtered rows")
+
+    # -----------------------------
+    # Download Button
+    # -----------------------------
+    if not filtered_df.empty:
+        csv = filtered_df.to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            label="📥 Download Filtered Data as CSV",
+            data=csv,
+            file_name="filtered_latest_data.csv",
+            mime="text/csv"
+        )
+    else:
+        st.warning("No rows match current filters.")
+
+    
     '''
     if 'Date' in latest_data.columns:
         latest_data['Date'] = pd.to_datetime(latest_data['Date'])
@@ -963,7 +986,7 @@ with tab2:
                 "RSI_e": st.column_config.NumberColumn("RSI_e", format="%.1f"),
             }
         )
-        '''
+        
     if 1==1:
         # Optional: Download filtered data
         if st.button("📥 Download filtered data as CSV"):
@@ -978,3 +1001,5 @@ with tab2:
             )
     else:
         st.error("No latest data available. Please check data loading.")
+    '''
+        
