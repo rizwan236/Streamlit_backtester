@@ -589,262 +589,300 @@ with st.sidebar:
     
     analyze_button = st.button("🚀 Analyze", type="primary", use_container_width=True)
 
+
+# After the sidebar definition, in the main area:
+tab1, tab2 = st.tabs(["📈 Analysis", "🔍 Latest Filter"])
 # Main content
-if analyze_button:
-    try:
-        # Download data
-        with st.spinner(f"Fetching {symbol} data..."):
-            #combined_data["Symbol"].dropna().unique().tolist()          
-            data = combined_data.loc[combined_data["Symbol"] == symbol]
-            data = data.reset_index(drop=True)
-            data = data.copy()
-            data["Date"] = pd.to_datetime(data["Date"])  
-            data.set_index("Date", inplace=True)
-            data.rename(columns={"Score": "MOMScore"}, inplace=True)   
-            #pybroker.register_columns("Stock_Cumulative_Return", "MRP", "Exp", "DD_PCT", "DD_LOG", "ta_DD_LOG", "ST", "OBV", "AD", "MOMScore", "niftyOpen", "niftyHigh",
-            #                          "niftyLow", "niftyClose", "SMA_200C", "AD", "weighted_MR", "weighted_excessMR", "Beta")         
-            #data = yf.download(symbol, period=period, progress=False)
-            if data.empty:
-                st.error(f"❌ No data found for {symbol}")
-                st.stop()
-
-
-        
-        # Calculate indicators
-        with st.spinner("Calculating indicators..."):
-            # Ensure we have proper Series objects (1D arrays)
-            close = pd.Series(data['Close'].values.flatten(), index=data.index)
-            high = pd.Series(data['High'].values.flatten(), index=data.index)
-            low = pd.Series(data['Low'].values.flatten(), index=data.index)
-            open_price = pd.Series(data['Open'].values.flatten(), index=data.index)
-            volume = pd.Series(data['Volume'].values.flatten(), index=data.index)
-            data['SMA_200C'] = data['SMA_200C'].replace(0, np.nan)
-            SMA_200C = pd.Series(data['SMA_200C'].values.flatten(), index=data.index)  
-            MRP =pd.Series(data['MRP'].values.flatten(), index=data.index) 
-            OBV=pd.Series(data['OBV'].values.flatten(), index=data.index) 
-            MOMScore =pd.Series(data['MOMScore'].values.flatten(), index=data.index) 
-            RSI_e =pd.Series(data['RSI_e'].values.flatten(), index=data.index) 
-            weighted_excessMR =pd.Series(data['weighted_excessMR'].values.flatten(), index=data.index) 
-            ST =pd.Series(data['ST'].values.flatten(), index=data.index) 
-            DD_LOG =pd.Series(data['DD_LOG'].values.flatten(), index=data.index) 
-            
-            
-            data['RSI'] = ta.momentum.RSIIndicator(close, window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
-            data['RSI_20'] = ta.momentum.RSIIndicator(close, window=24).rsi() 
-            data['sma_based_sma200'] = ta.trend.sma_indicator(SMA_200C, window=42, fillna=False)
-            data['SMAScore24'] = ta.trend.sma_indicator(MOMScore, window=7, fillna=False)
-            data['EMAOBV']= ta.trend.sma_indicator(OBV, window=42, fillna=False)
-            data['EMAClose12']= ta.trend.ema_indicator(close, window=50, fillna=False)
-            data['EMAClose24']= ta.trend.ema_indicator(close, window=150, fillna=False)
-            data['EMAClose52']= ta.trend.ema_indicator(close, window=200, fillna=False)
-            data['SMAClose40'] = ta.trend.sma_indicator(close, window=200, fillna=False)
-            data['SMAClose30'] = ta.trend.ema_indicator(close, window=150, fillna=False)
-            data['SMAClose10']= ta.trend.ema_indicator(close, window=50, fillna=False)
-            data['wkH52'] = close.rolling(250, min_periods=1).max()
-            data['wkL52'] = close.rolling(250, min_periods=1).min()
-            data['EMAMRP12'] = ta.trend.ema_indicator(MRP, window=50, fillna=False)
-            data['EMAMRP52'] = ta.trend.ema_indicator(MRP, window=200, fillna=False)
-            data['EMAMRP24'] = ta.trend.ema_indicator(MRP, window=150, fillna=False)
-            data['ADX']  = ta.trend.adx(high, low, close, window=21, fillna=False)            
-            data['PLUS_DI']=ta.trend.adx_pos(high, low, close, window=14, fillna=False)
-            data['MINUS_DI']= ta.trend.adx_neg(high, low, close, window=14, fillna=False)
-            data['RSI_max'] = RSI_e.rolling(90, min_periods=1).max()
-            data['RSI_min'] = RSI_e.rolling(7, min_periods=1).min()            
-            AD= data['AD'] = ta.volume.acc_dist_index(high, low, close, volume, fillna=False)
-            data['SMAAD']= ta.trend.ema_indicator(AD, window=34, fillna=False)
-            
-            
-            
-            data['CCI'] = ta.trend.CCIIndicator(
-            high, 
-            low, 
-            close, 
-            window=cci_period
-            ).cci() #calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
-
-            #ta.trend.sma_indicator(close, window=12, fillna=False)
-            #ta.trend.ema_indicator(close, window=12, fillna=False)         
-                
-            data['ADX'] = ta.trend.ADXIndicator(
-            high, 
-            low, 
-            close, 
-            window=adx_period
-            ).adx() #calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
-
-            macd_indicator = ta.trend.MACD(
-                close,
-                window_slow=macd_slow,
-                window_fast=macd_fast,
-                window_sign=macd_signal
-            )
-            data['MACD'] = macd_indicator.macd()
-            data['MACD_signal'] = macd_indicator.macd_signal()
-            data['MACD_hist'] = macd_indicator.macd_diff()  # This is the histogram
-            
-            
-            #macd, signal, hist = calculate_macd(data['Close'], macd_fast, macd_slow, macd_signal)
-            #data['MACD'] = macd.values
-            #data['MACD_signal'] = signal.values
-            #data['MACD_hist'] = hist.values
-            
-            data['Drawdown'] = calculate_drawdown(data['Close'])
-        
-        # Calculate trades
-        data, trades = calculate_trades(data, buy_rsi, buy_cci, sell_rsi, sell_cci)
-        
-        # Display metrics
-        # Display metrics - CORRECTED VERSION
-        st.subheader("📊 Performance Summary")
-        col1, col2, col3, col4 = st.columns(4)
-        
-        with col1:
-            # Get scalar values from the series
-            current_price = float(data['Close'].iloc[-1])
-            initial_price = float(data['Close'].iloc[0])
-            price_change = ((current_price - initial_price) / initial_price * 100)
-            st.metric("Current Price", f"{current_price:.2f}", f"1yr {price_change:+.2f}%")
-        
-        with col2:
-            total_trades = len(trades)
-            if trades:
-                winning_trades = len([t for t in trades if float(t['P&L'].strip('%').replace('+', '')) > 0])
-                win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
-                st.metric("Win Rate", f"{win_rate:.1f}%", f"{winning_trades}/{total_trades}")
-            else:
-                st.metric("Win Rate", "0.0%", "0/0")
-        
-        with col3:
-            if trades:
-                pnls = [float(t['P&L'].strip('%').replace('+', '')) for t in trades]
-                avg_pnl = float(np.mean(pnls))
-                st.metric("Avg P&L", f"{avg_pnl:+.2f}%")
-            else:
-                st.metric("Avg P&L", "0.00%")
-        
-        with col4:
-            if trades:
-                avg_days = float(np.mean([t['Days'] for t in trades]))
-                st.metric("Avg Days Held", f"{avg_days:.1f}")
-            else:
-                st.metric("Avg Days Held", "0")
-        
-        # In your analyze button section, replace the plotly chart with:
-        # In your analyze section, replace the plotly chart with:
-        stock1 = yf.Ticker(symbol)
-        
-        company_name = stock1.info.get("shortName", symbol)
-        
-        st.subheader(f"📈 Technical Analysis Chart — {company_name} ({symbol})")
-        
-        #st.subheader("📈 Technical Analysis Chart")
-        
+with tab1:
+    if analyze_button:
         try:
-            # Use the simple chart to avoid issues
-            fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,)
+            # Download data
+            with st.spinner(f"Fetching {symbol} data..."):
+                #combined_data["Symbol"].dropna().unique().tolist()          
+                data = combined_data.loc[combined_data["Symbol"] == symbol]
+                data = data.reset_index(drop=True)
+                data = data.copy()
+                data["Date"] = pd.to_datetime(data["Date"])  
+                data.set_index("Date", inplace=True)
+                data.rename(columns={"Score": "MOMScore"}, inplace=True)   
+                #pybroker.register_columns("Stock_Cumulative_Return", "MRP", "Exp", "DD_PCT", "DD_LOG", "ta_DD_LOG", "ST", "OBV", "AD", "MOMScore", "niftyOpen", "niftyHigh",
+                #                          "niftyLow", "niftyClose", "SMA_200C", "AD", "weighted_MR", "weighted_excessMR", "Beta")         
+                #data = yf.download(symbol, period=period, progress=False)
+                if data.empty:
+                    st.error(f"❌ No data found for {symbol}")
+                    st.stop()
+    
+    
             
-            # Display in Streamlit
-            st.pyplot(fig)
+            # Calculate indicators
+            with st.spinner("Calculating indicators..."):
+                # Ensure we have proper Series objects (1D arrays)
+                close = pd.Series(data['Close'].values.flatten(), index=data.index)
+                high = pd.Series(data['High'].values.flatten(), index=data.index)
+                low = pd.Series(data['Low'].values.flatten(), index=data.index)
+                open_price = pd.Series(data['Open'].values.flatten(), index=data.index)
+                volume = pd.Series(data['Volume'].values.flatten(), index=data.index)
+                data['SMA_200C'] = data['SMA_200C'].replace(0, np.nan)
+                SMA_200C = pd.Series(data['SMA_200C'].values.flatten(), index=data.index)  
+                MRP =pd.Series(data['MRP'].values.flatten(), index=data.index) 
+                OBV=pd.Series(data['OBV'].values.flatten(), index=data.index) 
+                MOMScore =pd.Series(data['MOMScore'].values.flatten(), index=data.index) 
+                RSI_e =pd.Series(data['RSI_e'].values.flatten(), index=data.index) 
+                weighted_excessMR =pd.Series(data['weighted_excessMR'].values.flatten(), index=data.index) 
+                ST =pd.Series(data['ST'].values.flatten(), index=data.index) 
+                DD_LOG =pd.Series(data['DD_LOG'].values.flatten(), index=data.index) 
+                
+                
+                data['RSI'] = ta.momentum.RSIIndicator(close, window=rsi_period).rsi()  #calculate_rsi(data['Close'], rsi_period)
+                data['RSI_20'] = ta.momentum.RSIIndicator(close, window=24).rsi() 
+                data['sma_based_sma200'] = ta.trend.sma_indicator(SMA_200C, window=42, fillna=False)
+                data['SMAScore24'] = ta.trend.sma_indicator(MOMScore, window=7, fillna=False)
+                data['EMAOBV']= ta.trend.sma_indicator(OBV, window=42, fillna=False)
+                data['EMAClose12']= ta.trend.ema_indicator(close, window=50, fillna=False)
+                data['EMAClose24']= ta.trend.ema_indicator(close, window=150, fillna=False)
+                data['EMAClose52']= ta.trend.ema_indicator(close, window=200, fillna=False)
+                data['SMAClose40'] = ta.trend.sma_indicator(close, window=200, fillna=False)
+                data['SMAClose30'] = ta.trend.ema_indicator(close, window=150, fillna=False)
+                data['SMAClose10']= ta.trend.ema_indicator(close, window=50, fillna=False)
+                data['wkH52'] = close.rolling(250, min_periods=1).max()
+                data['wkL52'] = close.rolling(250, min_periods=1).min()
+                data['EMAMRP12'] = ta.trend.ema_indicator(MRP, window=50, fillna=False)
+                data['EMAMRP52'] = ta.trend.ema_indicator(MRP, window=200, fillna=False)
+                data['EMAMRP24'] = ta.trend.ema_indicator(MRP, window=150, fillna=False)
+                data['ADX']  = ta.trend.adx(high, low, close, window=21, fillna=False)            
+                data['PLUS_DI']=ta.trend.adx_pos(high, low, close, window=14, fillna=False)
+                data['MINUS_DI']= ta.trend.adx_neg(high, low, close, window=14, fillna=False)
+                data['RSI_max'] = RSI_e.rolling(90, min_periods=1).max()
+                data['RSI_min'] = RSI_e.rolling(7, min_periods=1).min()            
+                AD= data['AD'] = ta.volume.acc_dist_index(high, low, close, volume, fillna=False)
+                data['SMAAD']= ta.trend.ema_indicator(AD, window=34, fillna=False)
+                
+                
+                
+                data['CCI'] = ta.trend.CCIIndicator(
+                high, 
+                low, 
+                close, 
+                window=cci_period
+                ).cci() #calculate_cci(data['High'], data['Low'], data['Close'], cci_period)
+    
+                #ta.trend.sma_indicator(close, window=12, fillna=False)
+                #ta.trend.ema_indicator(close, window=12, fillna=False)         
+                    
+                data['ADX'] = ta.trend.ADXIndicator(
+                high, 
+                low, 
+                close, 
+                window=adx_period
+                ).adx() #calculate_adx(data['High'], data['Low'], data['Close'], adx_period)
+    
+                macd_indicator = ta.trend.MACD(
+                    close,
+                    window_slow=macd_slow,
+                    window_fast=macd_fast,
+                    window_sign=macd_signal
+                )
+                data['MACD'] = macd_indicator.macd()
+                data['MACD_signal'] = macd_indicator.macd_signal()
+                data['MACD_hist'] = macd_indicator.macd_diff()  # This is the histogram
+                
+                
+                #macd, signal, hist = calculate_macd(data['Close'], macd_fast, macd_slow, macd_signal)
+                #data['MACD'] = macd.values
+                #data['MACD_signal'] = signal.values
+                #data['MACD_hist'] = hist.values
+                
+                data['Drawdown'] = calculate_drawdown(data['Close'])
             
-            # Optional: Add download button
-            if st.button("💾 Save Chart as PNG"):
-                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-                filename = f"{symbol}_chart_{timestamp}.png"
-                fig.savefig(filename, dpi=300, bbox_inches='tight')
-                st.success(f"Chart saved as {filename}")
+            # Calculate trades
+            data, trades = calculate_trades(data, buy_rsi, buy_cci, sell_rsi, sell_cci)
             
-            # Close the figure to free memory
-            plt.close(fig)
-            
-        except Exception as e:
-            st.error(f"Error creating chart: {str(e)}")
-            st.info("Showing data table instead...")
-            st.dataframe(data.tail(10))
-        
-        # Display trades
-        # Performance metrics - CORRECTED VERSION
-        if trades:
-            st.subheader("🎯 Performance Metrics")
+            # Display metrics
+            # Display metrics - CORRECTED VERSION
+            st.subheader("📊 Performance Summary")
             col1, col2, col3, col4 = st.columns(4)
             
-            # Convert P&L strings to floats
-            pnl_values = []
-            for t in trades:
-                pnl_str = t['P&L'].strip('%')
-                # Handle both positive and negative values
-                if pnl_str.startswith('+'):
-                    pnl_values.append(float(pnl_str[1:]))
-                elif pnl_str.startswith('-'):
-                    pnl_values.append(float(pnl_str))
-                else:
-                    pnl_values.append(float(pnl_str))
-            
             with col1:
-                best_trade = float(np.max(pnl_values))
-                st.metric("Best Trade", f"{best_trade:+.2f}%")
+                # Get scalar values from the series
+                current_price = float(data['Close'].iloc[-1])
+                initial_price = float(data['Close'].iloc[0])
+                price_change = ((current_price - initial_price) / initial_price * 100)
+                st.metric("Current Price", f"{current_price:.2f}", f"1yr {price_change:+.2f}%")
             
             with col2:
-                worst_trade = float(np.min(pnl_values))
-                st.metric("Worst Trade", f"{worst_trade:+.2f}%")
+                total_trades = len(trades)
+                if trades:
+                    winning_trades = len([t for t in trades if float(t['P&L'].strip('%').replace('+', '')) > 0])
+                    win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0
+                    st.metric("Win Rate", f"{win_rate:.1f}%", f"{winning_trades}/{total_trades}")
+                else:
+                    st.metric("Win Rate", "0.0%", "0/0")
             
             with col3:
-                total_return = float(np.sum(pnl_values))
-                st.metric("Total Return", f"{total_return:+.2f}%")
+                if trades:
+                    pnls = [float(t['P&L'].strip('%').replace('+', '')) for t in trades]
+                    avg_pnl = float(np.mean(pnls))
+                    st.metric("Avg P&L", f"{avg_pnl:+.2f}%")
+                else:
+                    st.metric("Avg P&L", "0.00%")
             
             with col4:
-                if len(pnl_values) > 1 and np.std(pnl_values) > 0:
+                if trades:
                     avg_days = float(np.mean([t['Days'] for t in trades]))
-                    sharpe = (np.mean(pnl_values) / np.std(pnl_values)) * np.sqrt(252/avg_days)
-                    st.metric("Sharpe Ratio", f"{float(sharpe):.2f}")
+                    st.metric("Avg Days Held", f"{avg_days:.1f}")
                 else:
-                    st.metric("Sharpe Ratio", "N/A")
+                    st.metric("Avg Days Held", "0")
+            
+            # In your analyze button section, replace the plotly chart with:
+            # In your analyze section, replace the plotly chart with:
+            stock1 = yf.Ticker(symbol)
+            
+            company_name = stock1.info.get("shortName", symbol)
+            
+            st.subheader(f"📈 Technical Analysis Chart — {company_name} ({symbol})")
+            
+            #st.subheader("📈 Technical Analysis Chart")
+            
+            try:
+                # Use the simple chart to avoid issues
+                fig = create_chart(data, buy_rsi, buy_cci, sell_rsi, sell_cci, symbol,)
+                
+                # Display in Streamlit
+                st.pyplot(fig)
+                
+                # Optional: Add download button
+                if st.button("💾 Save Chart as PNG"):
+                    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                    filename = f"{symbol}_chart_{timestamp}.png"
+                    fig.savefig(filename, dpi=300, bbox_inches='tight')
+                    st.success(f"Chart saved as {filename}")
+                
+                # Close the figure to free memory
+                plt.close(fig)
+                
+            except Exception as e:
+                st.error(f"Error creating chart: {str(e)}")
+                st.info("Showing data table instead...")
+                st.dataframe(data.tail(10))
+            
+            # Display trades
+            # Performance metrics - CORRECTED VERSION
+            if trades:
+                st.subheader("🎯 Performance Metrics")
+                col1, col2, col3, col4 = st.columns(4)
+                
+                # Convert P&L strings to floats
+                pnl_values = []
+                for t in trades:
+                    pnl_str = t['P&L'].strip('%')
+                    # Handle both positive and negative values
+                    if pnl_str.startswith('+'):
+                        pnl_values.append(float(pnl_str[1:]))
+                    elif pnl_str.startswith('-'):
+                        pnl_values.append(float(pnl_str))
+                    else:
+                        pnl_values.append(float(pnl_str))
+                
+                with col1:
+                    best_trade = float(np.max(pnl_values))
+                    st.metric("Best Trade", f"{best_trade:+.2f}%")
+                
+                with col2:
+                    worst_trade = float(np.min(pnl_values))
+                    st.metric("Worst Trade", f"{worst_trade:+.2f}%")
+                
+                with col3:
+                    total_return = float(np.sum(pnl_values))
+                    st.metric("Total Return", f"{total_return:+.2f}%")
+                
+                with col4:
+                    if len(pnl_values) > 1 and np.std(pnl_values) > 0:
+                        avg_days = float(np.mean([t['Days'] for t in trades]))
+                        sharpe = (np.mean(pnl_values) / np.std(pnl_values)) * np.sqrt(252/avg_days)
+                        st.metric("Sharpe Ratio", f"{float(sharpe):.2f}")
+                    else:
+                        st.metric("Sharpe Ratio", "N/A")
+            
+            # Export data
+            with st.expander("📁 Export Data"):
+                csv = data.to_csv().encode('utf-8')
+                st.download_button(
+                    label="📥 Download CSV",
+                    data=csv,
+                    file_name=f"{symbol}_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
+                    mime="text/csv",
+                    use_container_width=True
+                )
         
-        # Export data
-        with st.expander("📁 Export Data"):
-            csv = data.to_csv().encode('utf-8')
-            st.download_button(
-                label="📥 Download CSV",
-                data=csv,
-                file_name=f"{symbol}_analysis_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv",
-                use_container_width=True
-            )
+        except Exception as e:
+            st.error(f"❌ Error: {str(e)}")
+            st.info("💡 Tip: Try a different stock symbol or check your internet connection")
+            # Optionally show more details
+            with st.expander("Show Traceback"):
+                st.code(traceback.format_exc())        
     
-    except Exception as e:
-        st.error(f"❌ Error: {str(e)}")
-        st.info("💡 Tip: Try a different stock symbol or check your internet connection")
-        # Optionally show more details
-        with st.expander("Show Traceback"):
-            st.code(traceback.format_exc())        
+    else:
+        # Welcome screen
+        st.markdown("""
+        <div style='text-align: center; padding: 2rem;'>
+            <h3>📊 Technical Analysis Dashboard</h3>
+            <p>Analyze stocks with RSI, CCI, ADX, and MACD indicators</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown("### 🎯 Quick Start - Select a stock:")
+        cols = st.columns(5)
+        popular_subset = POPULAR_SYMBOLS[:10]  # Show first 10
+        
+        for idx, sym in enumerate(popular_subset):
+            with cols[idx % 5]:
+                if st.button(sym, use_container_width=True):
+                    st.session_state.custom_symbol = sym
+                    st.rerun()
+        
+        st.markdown("---")
+        st.markdown("""
+        ### 📈 How to Use:
+        1. **Select** a stock symbol from the dropdown or enter custom
+        2. **Set** your trading rules (RSI/CCI thresholds)
+        3. **Adjust** indicator periods if needed
+        4. **Click** "Analyze" to run the analysis
+        
+        ### 📊 Trading Strategy:
+        - **BUY** when RSI > [Buy RSI] AND CCI > [Buy CCI]
+        - **SELL** when RSI < [Sell RSI] AND CCI < [Sell CCI]
+        """)
 
-else:
-    # Welcome screen
-    st.markdown("""
-    <div style='text-align: center; padding: 2rem;'>
-        <h3>📊 Technical Analysis Dashboard</h3>
-        <p>Analyze stocks with RSI, CCI, ADX, and MACD indicators</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("### 🎯 Quick Start - Select a stock:")
-    cols = st.columns(5)
-    popular_subset = POPULAR_SYMBOLS[:10]  # Show first 10
-    
-    for idx, sym in enumerate(popular_subset):
-        with cols[idx % 5]:
-            if st.button(sym, use_container_width=True):
-                st.session_state.custom_symbol = sym
-                st.rerun()
-    
-    st.markdown("---")
-    st.markdown("""
-    ### 📈 How to Use:
-    1. **Select** a stock symbol from the dropdown or enter custom
-    2. **Set** your trading rules (RSI/CCI thresholds)
-    3. **Adjust** indicator periods if needed
-    4. **Click** "Analyze" to run the analysis
-    
-    ### 📊 Trading Strategy:
-    - **BUY** when RSI > [Buy RSI] AND CCI > [Buy CCI]
-    - **SELL** when RSI < [Sell RSI] AND CCI < [Sell CCI]
-    """)
+
+with tab2:
+    st.header("Filter Latest Data by Symbol")
+    st.markdown("Use column filters – click a column header → **Filter** – to narrow down the data.")
+
+    #st.data_editor(latest_data[['Symbol', 'Date', 'Close', 'Volume', 'Score']], ...)
+    # Ensure latest_data is available (it's defined earlier)
+    if 'latest_data' in locals() and latest_data is not None:
+        st.data_editor(
+            latest_data[[Symbol, Date, Close, High, Low, Open, Volume, Stock_Cumulative_Return, MRP, Exp,DD_PCT, ST, OBV, weighted_excessMR, weighted_MR, Score, SMA_200C, RSI_e,]],
+            use_container_width=True,
+            num_rows="fixed",
+            key="latest_filter_editor",
+            column_config={
+                # Optionally configure column types for better filtering
+                "Date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
+                # Add other columns as needed, or let Streamlit infer
+            }
+        )
+        
+        # Optional: Download filtered data
+        if st.button("📥 Download filtered data as CSV"):
+            # The editor's state is available via session_state
+            filtered_df = st.session_state["latest_filter_editor"]
+            csv = filtered_df.to_csv().encode('utf-8')
+            st.download_button(
+                label="Download CSV",
+                data=csv,
+                file_name="filtered_latest_data.csv",
+                mime="text/csv"
+            )
+    else:
+        st.error("No latest data available. Please check data loading.")
