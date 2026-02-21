@@ -912,7 +912,12 @@ with tab2:
         gb.configure_pagination(paginationAutoPageSize=True)
     
         grid_options = gb.build()
-    
+        grid_options["filterModel"] = {
+        "ST": {"filterType": "number", "type": "equals", "filter": 1},
+        "Score": {"filterType": "number", "type": "greaterThan", "filter": 1},
+        "RSI_e": {"filterType": "number", "type": "greaterThan", "filter": 40},
+        "Volume": {"filterType": "number", "type": "greaterThan", "filter": 2000},
+    }
         # -----------------------------
         # Render Grid
         # -----------------------------
