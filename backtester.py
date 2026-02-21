@@ -33,7 +33,7 @@ try:
         columns={"Symbol": "symbol", "Score": "score"})
     
     #top_25 = latest_data.nlargest(25, 'Score')[['Symbol', 'Score']]
-    top_symbols = top_25['Symbol'].tolist()
+    top_symbols = top_25['symbol'].tolist()
     
 except Exception as e:
     print(f"An error occurred: {e}")
