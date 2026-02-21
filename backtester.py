@@ -930,7 +930,7 @@ with tab2:
         # -----------------------------
     # Get Filtered Data
     # -----------------------------
-    filtered_df = pd.DataFrame(grid_response["data"])
+    filtered_df = latest_data#pd.DataFrame(grid_response["data"])
 
     st.write(f"Showing {len(filtered_df)} filtered rows")
 
