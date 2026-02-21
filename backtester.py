@@ -9,6 +9,8 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.patches import Rectangle
 #import mplfinance as mpf
+from st_aggrid import AgGrid, GridOptionsBuilder, GridUpdateMode
+from st_aggrid.shared import ColumnsAutoSizeMode
 
 #[Symbol, Date, Close, High, Low, Open, Volume, Stock_Cumulative_Return, MRP, MRP13, MRP25, Exp, DD_LOG, DD, DD_PCT, ta_DD_LOG, ST, OBV, AD, Beta, weighted_excessMR, weighted_MR, Score, SMA_200C, RS
 #I_e, niftyOpen, niftyHigh, niftyLow, niftyClose]
@@ -858,16 +860,79 @@ with tab2:
     st.header("Filter Latest Data by Symbol")
     st.markdown("Use column filters – click a column header → **Filter** – to narrow down the data.")
 
-    combined_data = pd.read_pickle(
-        r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
+    #combined_data = pd.read_pickle(
+    #    r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
     #print(combined_data.columns.tolist())
     #combined_data.fillna(0, inplace=True)
     #POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
-    latest_data = combined_data.groupby("Symbol").tail(1)  
+    #latest_data = combined_data.groupby("Symbol").tail(1)  
     print(latest_data.columns)
+
+    if 'latest_data' in locals() and latest_data is not None:
     
+        df = latest_data[['Symbol', 'Date', 'Close', 'High', 'Low', 'Open',
+                          'Volume', 'Stock_Cumulative_Return', 'MRP',
+                          'DD_PCT', 'ST', 'OBV',
+                          'weighted_excessMR', 'weighted_MR',
+                          'Score', 'SMA_200C', 'RSI_e']].copy()
+    
+        # -----------------------------
+        # Build Grid Options
+        # -----------------------------
+        gb = GridOptionsBuilder.from_dataframe(df)
+    
+        gb.configure_default_column(
+            filter=True,        # Enables filter dropdown
+            sortable=True,
+            resizable=True,
+            floatingFilter=True # Shows filter row under header
+        )
+    
+        # Specific column types
+        gb.configure_column("Date", type=["dateColumnFilter","customDateTimeFormat"],
+                            custom_format_string='yyyy-MM-dd')
+    
+        numeric_cols = [
+            'Close','High','Low','Open','Volume',
+            'Stock_Cumulative_Return','MRP','DD_PCT',
+            'ST','OBV','weighted_excessMR',
+            'weighted_MR','Score','SMA_200C','RSI_e'
+        ]
+    
+        for col in numeric_cols:
+            gb.configure_column(
+                col,
+                type=["numericColumn", "numberColumnFilter"],
+                filterParams={
+                    "buttons": ["apply", "reset"],
+                    "debounceMs": 200
+                }
+            )
+    
+        gb.configure_pagination(paginationAutoPageSize=True)
+    
+        grid_options = gb.build()
+    
+        # -----------------------------
+        # Render Grid
+        # -----------------------------
+        AgGrid(
+            df,
+            gridOptions=grid_options,
+            update_mode=GridUpdateMode.FILTERING_CHANGED,
+            fit_columns_on_grid_load=True,
+            enable_enterprise_modules=False,
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+            height=600,
+            theme="streamlit"
+        )
+
+    '''
     if 'Date' in latest_data.columns:
         latest_data['Date'] = pd.to_datetime(latest_data['Date'])
+
+
+    
         
     #st.data_editor(latest_data[['Symbol', 'Date', 'Close', 'Volume', 'Score']], ...)
     # Ensure latest_data is available (it's defined earlier)
@@ -898,7 +963,7 @@ with tab2:
                 "RSI_e": st.column_config.NumberColumn("RSI_e", format="%.1f"),
             }
         )
-        
+        '''
         # Optional: Download filtered data
         if st.button("📥 Download filtered data as CSV"):
             # The editor's state is available via session_state
