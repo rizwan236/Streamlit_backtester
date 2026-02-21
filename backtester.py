@@ -865,7 +865,10 @@ with tab2:
     #POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
     latest_data = combined_data.groupby("Symbol").tail(1)  
     print(latest_data.columns)
-
+    
+    if 'Date' in latest_data.columns:
+        latest_data['Date'] = pd.to_datetime(latest_data['Date'])
+        
     #st.data_editor(latest_data[['Symbol', 'Date', 'Close', 'Volume', 'Score']], ...)
     # Ensure latest_data is available (it's defined earlier)
     if 'latest_data' in locals() and latest_data is not None:
