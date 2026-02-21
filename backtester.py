@@ -877,7 +877,7 @@ with tab2:
             key="latest_filter_editor",
             column_config={
                 # Optionally configure column types for better filtering
-                "Date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
+                #"Date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
                 # Add other columns as needed, or let Streamlit infer
             }
         )
