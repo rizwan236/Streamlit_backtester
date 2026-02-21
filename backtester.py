@@ -924,7 +924,7 @@ with tab2:
         AgGrid(
             df,
             gridOptions=grid_options,
-            update_mode=GridUpdateMode.filterModel # FILTERING_CHANGED, #FILTERING_CHANGED,
+            update_mode=GridUpdateMode.filterModel, # FILTERING_CHANGED, #FILTERING_CHANGED,
             fit_columns_on_grid_load=True,
             enable_enterprise_modules=False,
             columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
