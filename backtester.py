@@ -918,6 +918,11 @@ with tab2:
         "RSI_e": {"filterType": "number", "type": "greaterThan", "filter": 40},
         "Volume": {"filterType": "number", "type": "greaterThan", "filter": 2000},
     }
+
+        grid_options["filterModel"] = st.session_state.get(
+        "filter_model",
+        st.session_state.default_filter_model)
+        
         # -----------------------------
         # Render Grid
         # -----------------------------
