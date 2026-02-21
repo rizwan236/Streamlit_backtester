@@ -858,6 +858,14 @@ with tab2:
     st.header("Filter Latest Data by Symbol")
     st.markdown("Use column filters – click a column header → **Filter** – to narrow down the data.")
 
+    combined_data = pd.read_pickle(
+        r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
+    #print(combined_data.columns.tolist())
+    #combined_data.fillna(0, inplace=True)
+    #POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
+    latest_data = combined_data.groupby("Symbol").tail(1)  
+    print(latest_data.columns)
+
     #st.data_editor(latest_data[['Symbol', 'Date', 'Close', 'Volume', 'Score']], ...)
     # Ensure latest_data is available (it's defined earlier)
     if 'latest_data' in locals() and latest_data is not None:
