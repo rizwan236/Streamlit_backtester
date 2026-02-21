@@ -29,7 +29,7 @@ try:
     
     # 3. Select Symbol and Score, sort descending, take top 25, and rename columns
     top_25 = filtered[["Symbol", "Score"]].sort_values("Score", ascending=False).head(25).rename(
-        columns={"Symbol": "symbol", "Score": "score"}
+        columns={"Symbol": "symbol", "Score": "score"})
     
     #top_25 = latest_data.nlargest(25, 'Score')[['Symbol', 'Score']]
     top_symbols = top_25['Symbol'].tolist()
