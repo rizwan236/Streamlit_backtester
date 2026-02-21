@@ -964,6 +964,7 @@ with tab2:
             }
         )
         '''
+    if 1==1:
         # Optional: Download filtered data
         if st.button("📥 Download filtered data as CSV"):
             # The editor's state is available via session_state
