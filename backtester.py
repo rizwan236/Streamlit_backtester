@@ -919,8 +919,8 @@ with tab2:
         "Volume": {"filterType": "number", "type": "greaterThan", "filter": 2000},
     }
 
-        if "filter_model" not in st.session_state:
-            grid_options["filterModel"] = st.session_state.default_filter_model
+        #if "filter_model" not in st.session_state:
+        #    grid_options["filterModel"] = st.session_state.default_filter_model
             
         # -----------------------------
         # Render Grid
