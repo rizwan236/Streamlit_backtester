@@ -879,9 +879,23 @@ with tab2:
             num_rows="fixed",
             key="latest_filter_editor",
             column_config={
-                # Optionally configure column types for better filtering
+                "Symbol": st.column_config.TextColumn("Symbol"),
                 "Date": st.column_config.DateColumn("Date", format="YYYY-MM-DD"),
-                # Add other columns as needed, or let Streamlit infer
+                "Close": st.column_config.NumberColumn("Close", format="$%.2f"),
+                "High": st.column_config.NumberColumn("High", format="$%.2f"),
+                "Low": st.column_config.NumberColumn("Low", format="$%.2f"),
+                "Open": st.column_config.NumberColumn("Open", format="$%.2f"),
+                "Volume": st.column_config.NumberColumn("Volume", format="%d"),
+                "Stock_Cumulative_Return": st.column_config.NumberColumn("Stock Cum Return", format="%.2f"),
+                "MRP": st.column_config.NumberColumn("MRP", format="%.2f"),
+                "DD_PCT": st.column_config.NumberColumn("DD %", format="%.2f"),
+                "ST": st.column_config.NumberColumn("ST", format="%.2f"),
+                "OBV": st.column_config.NumberColumn("OBV", format="%.0f"),
+                "weighted_excessMR": st.column_config.NumberColumn("Weighted Excess MR", format="%.2f"),
+                "weighted_MR": st.column_config.NumberColumn("Weighted MR", format="%.2f"),
+                "Score": st.column_config.NumberColumn("Score", format="%.2f"),
+                "SMA_200C": st.column_config.NumberColumn("SMA 200C", format="$%.2f"),
+                "RSI_e": st.column_config.NumberColumn("RSI_e", format="%.1f"),
             }
         )
         
