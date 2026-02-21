@@ -916,7 +916,7 @@ with tab2:
         # -----------------------------
         # Render Grid
         # -----------------------------
-        grid_response = AgGrid(
+        AgGrid(
             df,
             gridOptions=grid_options,
             update_mode=GridUpdateMode.FILTERING_CHANGED,
