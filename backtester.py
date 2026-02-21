@@ -23,6 +23,7 @@ try:
     #print(combined_data.columns.tolist())
     combined_data.fillna(0, inplace=True)
     POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
+    
     latest_data = combined_data.groupby("Symbol").tail(1)
     # 2. Apply filters: Volume > 3000 and RSI_e > 40
     filtered = latest_data[(latest_data["Volume"] > 3000) & (latest_data["RSI_e"] > 40) & (latest_data["Score"] > 1)]
