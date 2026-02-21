@@ -870,8 +870,8 @@ with tab2:
     # Ensure latest_data is available (it's defined earlier)
     if 'latest_data' in locals() and latest_data is not None:
         st.data_editor(
-            #latest_data[[Symbol, Date, Close, High, Low, Open, Volume, Stock_Cumulative_Return, MRP, Exp,DD_PCT, ST, OBV, weighted_excessMR, weighted_MR, Score, SMA_200C, RSI_e,]],
-            latest_data,
+            latest_data[['Symbol', 'Date', 'Close', 'High', 'Low', 'Open', 'Volume', 'Stock_Cumulative_Return', 'MRP', 'Exp','DD_PCT', 'ST', 'OBV', 'weighted_excessMR', 'weighted_MR', 'Score', 'SMA_200C', 'RSI_e']],
+            #latest_data,
             use_container_width=True,
             num_rows="fixed",
             key="latest_filter_editor",
