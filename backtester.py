@@ -35,8 +35,8 @@ try:
     #top_25 = latest_data.nlargest(25, 'Score')[['Symbol', 'Score']]
     top_symbols = top_25['Symbol'].tolist()
     
-except exception as e:
-    print(e)
+except Exception as e:
+    print(f"An error occurred: {e}")
     POPULAR_SYMBOLS = ["AAPL", "MSFT", "GOOG", "AMZN", "META", "TSLA", "NVDA", "NFLX","JPM", "JNJ", "V", "WMT", "PG", "MA", "UNH", "HD", "BAC", "DIS", "ADBE"]
     top_symbols =["AAPL"]
 
