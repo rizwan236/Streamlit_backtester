@@ -739,12 +739,11 @@ with tab1:
             # In your analyze section, replace the plotly chart with:
             try:
                 stock1 = yf.Ticker(symbol)
+                company_name = stock1.info.get("shortName", symbol)
             except exception as e:
                 Print(f"yf.ticker: {e}")
-                stock1 = "Name error"      
-                      
+                company_name = "Name error"      
             
-            company_name = stock1.info.get("shortName", symbol)
             
             st.subheader(f"📈 Technical Analysis Chart — {company_name} ({symbol})")
             
