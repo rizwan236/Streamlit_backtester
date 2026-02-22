@@ -737,7 +737,12 @@ with tab1:
             
             # In your analyze button section, replace the plotly chart with:
             # In your analyze section, replace the plotly chart with:
-            stock1 = yf.Ticker(symbol)
+            try:
+                stock1 = yf.Ticker(symbol)
+            except exception as e:
+                Print("yf.ticker: {e})
+                stock1 = "Name error"      
+                      
             
             company_name = stock1.info.get("shortName", symbol)
             
