@@ -740,7 +740,7 @@ with tab1:
             try:
                 stock1 = yf.Ticker(symbol)
             except exception as e:
-                Print("yf.ticker: {e})
+                Print(f"yf.ticker: {e}")
                 stock1 = "Name error"      
                       
             
