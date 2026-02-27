@@ -869,7 +869,8 @@ with tab2:
     #print(combined_data.columns.tolist())
     #combined_data.fillna(0, inplace=True)
     #POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
-    #latest_data = combined_data.groupby("Symbol").tail(1)  
+    #latest_data = combined_data.groupby("Symbol").tail(1)
+    latest_data = combined_data
     print(latest_data.columns)
 
     if 'latest_data' in locals() and latest_data is not None:
