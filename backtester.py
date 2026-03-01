@@ -28,10 +28,12 @@ try:
     
     latest_data = combined_data.groupby("Symbol").tail(1)
     # 2. Apply filters: Volume > 3000 and RSI_e > 40
-    filtered = latest_data[(latest_data["Volume"] > 3000) & (latest_data["RSI_e"] > 40) & (latest_data["Score"] > 1)]
+    #filtered = latest_data[(latest_data["Volume"] > 3000) & (latest_data["RSI_e"] > 40) & (latest_data["Score"] > 1)]
+    filtered = latest_data[(latest_data["Volume_50SMA"] > 5000) & (
+        latest_data["RSI_e"] > 50) & (latest_data["Score"] > 1)]    
     
     # 3. Select Symbol and Score, sort descending, take top 25, and rename columns
-    top_25 = filtered[["Symbol", "Score"]].sort_values("Score", ascending=False).head(25).rename(
+    top_25 = filtered[["Symbol", "Score"]].sort_values("Score", ascending=False).head(50).rename(
         columns={"Symbol": "symbol", "Score": "score"})
     
     #top_25 = latest_data.nlargest(25, 'Score')[['Symbol', 'Score']]
