@@ -743,7 +743,7 @@ with tab1:
                 stock1 = yf.Ticker(symbol)
                 company_name = stock1.info.get("shortName", symbol)
             except Exception as e:
-                Print(f"yf.ticker: {e}")
+                print(f"yf.ticker: {e}")
                 company_name = "Name error"      
             
             
