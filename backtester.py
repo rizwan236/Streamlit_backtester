@@ -878,10 +878,9 @@ with tab2:
     if 'latest_data' in locals() and latest_data is not None:
     
         df = latest_data[['Symbol', 'Date', 'Close', 'High', 'Low', 'Open',
-                          'Volume', 'Stock_Cumulative_Return', 'MRP',
-                          'DD_PCT', 'ST', 'OBV',
-                          'weighted_excessMR', 'weighted_MR',
-                          'Score', 'SMA_200C', 'RSI_e']].copy()
+                          'Volume','Volume_50SMA', 'OBV', 'Stock_Cumulative_Return', 'MRP',
+                          'DD_PCT', 'ST','maxBrk',
+                          'Score','ZScore3m', 'SMA_200C', 'RSI_e']].copy()
     
         # -----------------------------
         # Build Grid Options
