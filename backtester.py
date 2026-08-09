@@ -900,10 +900,10 @@ with tab2:
                             custom_format_string='yyyy-MM-dd')
     
         numeric_cols = [
-            'Close','High','Low','Open','Volume',
+            'Close','High','Low','Open','Volume','Volume_50SMA',
             'Stock_Cumulative_Return','MRP','DD_PCT',
-            'ST','OBV','weighted_excessMR',
-            'weighted_MR','Score','SMA_200C','RSI_e'
+            'ST','OBV',
+            'Score','ZScore3m','maxBrk','SMA_200C','RSI_e',
         ]
     
         for col in numeric_cols:
