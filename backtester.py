@@ -878,7 +878,7 @@ with tab2:
 
     if 'latest_data' in locals() and latest_data is not None:
     
-        df = latest_data[['Symbol', 'Date', 'Close', 'High', 'Low', 'Open',
+        df = latest_data[['Symbol', 'Date', 'Close', 
                           'Volume','Volume_50SMA', 'OBV', 'Stock_Cumulative_Return', 'MRP',
                           'DD_PCT', 'ST','maxBrk',
                           'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e']].copy()
@@ -900,10 +900,10 @@ with tab2:
                             custom_format_string='yyyy-MM-dd')
     
         numeric_cols = [
-            'Close','High','Low','Open','Volume','Volume_50SMA',
+            'Close','Volume','Volume_50SMA',
             'Stock_Cumulative_Return','MRP','DD_PCT',
             'ST','OBV',
-            'Score','ZScore3m','maxBrk','SMA_200C','RSI_e',
+            'Score','ZScore3m','Fin_score','maxBrk','SMA_200C','RSI_e',
         ]
     
         for col in numeric_cols:
