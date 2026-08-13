@@ -24,6 +24,7 @@ try:
         r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
     #print(combined_data.columns.tolist())
     combined_data.fillna(0, inplace=True)
+    combined_data = combined_data.rename(columns={'finmagine_mom_score': 'Fin_score'})
     POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
     
     latest_data = combined_data.groupby("Symbol").tail(1)
@@ -880,7 +881,7 @@ with tab2:
         df = latest_data[['Symbol', 'Date', 'Close', 'High', 'Low', 'Open',
                           'Volume','Volume_50SMA', 'OBV', 'Stock_Cumulative_Return', 'MRP',
                           'DD_PCT', 'ST','maxBrk',
-                          'Score','ZScore3m', 'SMA_200C', 'RSI_e']].copy()
+                          'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e']].copy()
     
         # -----------------------------
         # Build Grid Options
