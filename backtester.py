@@ -596,7 +596,7 @@ with st.sidebar:
 
 
 # After the sidebar definition, in the main area:
-tab1, tab2 = st.tabs(["📈 Analysis", "🔍 Latest Filter"])
+tab1, tab2, tab3 = st.tabs(["📈 Analysis", "🔍 Latest Filter","Symbol data"])
 # Main content
 with tab1:
     if analyze_button:
@@ -965,6 +965,109 @@ with tab2:
     else:
         st.warning("No rows match current filters.")
 
+with tab3:
+    st.header("Filter Symbol Data by Symbol")
+    st.markdown("Use column filters – click a column header → **Filter** – to narrow down the data.")
+
+    #combined_data = pd.read_pickle(
+    #    r"https://raw.githubusercontent.com/rizwan236/Streamlit_backtester/main/combined_ticker_data.pkl.gz", compression="gzip")
+    #print(combined_data.columns.tolist())
+    #combined_data.fillna(0, inplace=True)
+    #POPULAR_SYMBOLS = combined_data["Symbol"].dropna().unique().tolist()
+    #latest_data = combined_data.groupby("Symbol").tail(1)
+    #latest_data = combined_data
+    print(combined_data.columns)
+
+    if 'combined_data' in locals() and combined_data is not None:
+    
+        df = combined_data[['Symbol', 'Date', 'Close', 
+                          'Volume','Volume_50SMA', 'OBV', 'Stock_Cumulative_Return', 'MRP',
+                          'DD_PCT', 'ST','maxBrk',
+                          'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e']].copy()
+    
+        # -----------------------------
+        # Build Grid Options
+        # -----------------------------
+        gb = GridOptionsBuilder.from_dataframe(df)
+    
+        gb.configure_default_column(
+            filter=True,        # Enables filter dropdown
+            sortable=True,
+            resizable=True,
+            floatingFilter=True # Shows filter row under header
+        )
+    
+        # Specific column types
+        gb.configure_column("Date", type=["dateColumnFilter","customDateTimeFormat"],
+                            custom_format_string='yyyy-MM-dd')
+    
+        numeric_cols = [
+            'Close','Volume','Volume_50SMA',
+            'Stock_Cumulative_Return','MRP','DD_PCT',
+            'ST','OBV',
+            'Score','ZScore3m','Fin_score','maxBrk','SMA_200C','RSI_e',
+        ]
+    
+        for col in numeric_cols:
+            gb.configure_column(
+                col,
+                type=["numericColumn", "numberColumnFilter"],
+                filterParams={
+                    "buttons": ["apply", "reset"],
+                    "debounceMs": 200
+                }
+            )
+    
+        gb.configure_pagination(paginationAutoPageSize=True)
+    
+        grid_options = gb.build()
+        grid_options["filterModel"] = {
+        "ST": {"filterType": "number", "type": "equals", "filter": 1},
+        "Score": {"filterType": "number", "type": "greaterThan", "filter": 1},
+        "RSI_e": {"filterType": "number", "type": "greaterThan", "filter": 40},
+        "Volume": {"filterType": "number", "type": "greaterThan", "filter": 2000},
+    }
+
+        #if "filter_model" not in st.session_state:
+        #    grid_options["filterModel"] = st.session_state.default_filter_model
+            
+        # -----------------------------
+        # Render Grid
+        # -----------------------------
+        AgGrid(
+            df,
+            gridOptions=grid_options,
+            update_mode=GridUpdateMode.MODEL_CHANGED, # FILTERING_CHANGED, #FILTERING_CHANGED,
+            fit_columns_on_grid_load=True,
+            enable_enterprise_modules=False,
+            columns_auto_size_mode=ColumnsAutoSizeMode.FIT_CONTENTS,
+            height=600,
+            theme="streamlit"
+        )
+
+        # -----------------------------
+    # Get Filtered Data
+    # -----------------------------
+    filtered_df = combined_data#pd.DataFrame(grid_response["data"])
+
+    st.write(f"Showing {len(filtered_df)} filtered rows")
+
+    # -----------------------------
+    # Download Button
+    # -----------------------------
+    if not filtered_df.empty:
+        csv = filtered_df.to_csv(index=False).encode("utf-8")
+
+        st.download_button(
+            label="📥 Download Filtered Data as CSV",
+            data=csv,
+            file_name="filtered_latest_data.csv",
+            mime="text/csv"
+        )
+    else:
+        st.warning("No rows match current filters.")
+    
+    
     
     '''
     if 'Date' in latest_data.columns:
