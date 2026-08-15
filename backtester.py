@@ -881,7 +881,7 @@ with tab2:
         df = latest_data[['Symbol', 'Date', 'Close', 
                           'Volume','Volume_50SMA', 'OBV', 'Stock_Cumulative_Return', 'MRP',
                           'DD_PCT', 'ST','maxBrk',
-                          'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e']].copy()
+                          'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e','avgRSI']].copy()
     
         # -----------------------------
         # Build Grid Options
@@ -903,7 +903,7 @@ with tab2:
             'Close','Volume','Volume_50SMA',
             'Stock_Cumulative_Return','MRP','DD_PCT',
             'ST','OBV',
-            'Score','ZScore3m','Fin_score','maxBrk','SMA_200C','RSI_e',
+            'Score','ZScore3m','Fin_score','maxBrk','SMA_200C','RSI_e','avgRSI'
         ]
     
         for col in numeric_cols:
@@ -983,7 +983,7 @@ with tab3:
         df = combined_data[['Symbol', 'Date', 'Close', 
                           'Volume','Volume_50SMA', 'OBV', 'Stock_Cumulative_Return', 'MRP',
                           'DD_PCT', 'ST','maxBrk',
-                          'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e']].copy()
+                          'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e','avgRSI']].copy()
     
         # -----------------------------
         # Build Grid Options
@@ -1005,7 +1005,7 @@ with tab3:
             'Close','Volume','Volume_50SMA',
             'Stock_Cumulative_Return','MRP','DD_PCT',
             'ST','OBV',
-            'Score','ZScore3m','Fin_score','maxBrk','SMA_200C','RSI_e',
+            'Score','ZScore3m','Fin_score','maxBrk','SMA_200C','RSI_e','avgRSI',
         ]
     
         for col in numeric_cols:
