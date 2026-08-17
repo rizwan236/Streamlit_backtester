@@ -970,19 +970,19 @@ with tab3:
     # Symbol Dropdown Filter
     # -----------------------------
     # Get unique symbols from the combined_data
-    all_symbols = sorted(combined_data["Symbol"].dropna().unique())
+    #all_symbols = sorted(combined_data["Symbol"].dropna().unique())
 
 
     # Use two columns for layout
-    col1 = st.columns(1)
+    #col1 = st.columns(1)
     
-    with col1:
-        selected_symbols = st.selectbox(
-            "Choose Symbol(s)",
-            options=all_symbols,
-            default=[],
-            help="Leave empty to show all symbols"
-        )
+    #with col1:
+    #    selected_symbols = st.selectbox(
+    #        "Choose Symbol(s)",
+    #        options=all_symbols,
+    #        default=[],
+    #        help="Leave empty to show all symbols"
+    #    )
         
     
     # Multiselect – allow multiple symbols (or use selectbox for single) multiselect
@@ -993,10 +993,10 @@ with tab3:
     #)
     
     # Apply filter if any symbols are selected
-    if selected_symbols:
-        combined_data = combined_data[combined_data["Symbol"].isin(selected_symbols)].copy()
-    else:
-        combined_data = combined_data.copy()
+    #if selected_symbols:
+    #    combined_data = combined_data[combined_data["Symbol"].isin(selected_symbols)].copy()
+    #else:
+    #    combined_data = combined_data.copy()
     
     # Now keep only the columns you need (as before)
    # df = df[['Symbol', 'Date', 'Close', 
