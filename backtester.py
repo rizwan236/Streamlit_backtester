@@ -971,13 +971,26 @@ with tab3:
     # -----------------------------
     # Get unique symbols from the combined_data
     all_symbols = sorted(combined_data["Symbol"].dropna().unique())
+
+
+    # Use two columns for layout
+    col1 = st.columns(1)
+    
+    with col1:
+        selected_symbols = st.selectbox(
+            "Choose Symbol(s)",
+            options=all_symbols,
+            default=[],
+            help="Leave empty to show all symbols"
+        )
+        
     
     # Multiselect – allow multiple symbols (or use selectbox for single) multiselect
-    selected_symbols = st.selectbox(
-        "Filter by Symbol(s)",
-        options=all_symbols,
-        default=[]  # empty = show all
-    )
+    #selected_symbols = st.selectbox(
+    #    "Filter by Symbol(s)",
+    #    options=all_symbols,
+    #    default=[]  # empty = show all
+    #)
     
     # Apply filter if any symbols are selected
     if selected_symbols:
