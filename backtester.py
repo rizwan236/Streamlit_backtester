@@ -966,6 +966,34 @@ with tab2:
         st.warning("No rows match current filters.")
 
 with tab3:
+    # -----------------------------
+    # Symbol Dropdown Filter
+    # -----------------------------
+    # Get unique symbols from the combined_data
+    all_symbols = sorted(combined_data["Symbol"].dropna().unique())
+    
+    # Multiselect – allow multiple symbols (or use selectbox for single) multiselect
+    selected_symbols = st.selectbox(
+        "Filter by Symbol(s)",
+        options=all_symbols,
+        default=[]  # empty = show all
+    )
+    
+    # Apply filter if any symbols are selected
+    if selected_symbols:
+        combined_data = combined_data[combined_data["Symbol"].isin(selected_symbols)].copy()
+    else:
+        combined_data = combined_data.copy()
+    
+    # Now keep only the columns you need (as before)
+   # df = df[['Symbol', 'Date', 'Close', 
+   #           'Volume','Volume_50SMA', 'OBV', 'Stock_Cumulative_Return', 'MRP',
+   #           'DD_PCT', 'ST','maxBrk',
+   #           'Score','ZScore3m','Fin_score', 'SMA_200C', 'RSI_e','avgRSI']].copy()
+    
+    # ... then continue with the GridOptionsBuilder and AgGrid using this filtered df
+
+    
     st.header("Filter Symbol Data by Symbol")
     st.markdown("Use column filters – click a column header → **Filter** – to narrow down the data.")
 
