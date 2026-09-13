@@ -152,40 +152,7 @@ valid_symbols_set = set(valid_symbols) | {BENCHMARK}
 final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
 if BENCHMARK in all_symbols and BENCHMARK not in final_symbols:
     final_symbols.insert(0, BENCHMARK)
-'''
-final_symbols = sorted(
-    final_symbols,
-    key=lambda s: (
-        0 if s == BENCHMARK else 1,
-        -latest_scores_map.get(s, float("-inf")),
-    ),
-)
 
-
-# ── Latest Score filter ─────────────────────────────────────────────────────
-st.sidebar.subheader("Score Filter (latest value)")
-score_mode = st.sidebar.radio(
-    "Condition", ["Greater than", "Less than"], horizontal=True
-)
-score_value = st.sidebar.number_input(
-    "Score threshold", value=0.0, step=0.1, format="%.4f"
-)
-
-if score_mode == "Greater than":
-    valid_symbols = [
-        s for s, v in latest_scores_map.items() if v > score_value
-    ]
-else:
-    valid_symbols = [
-        s for s, v in latest_scores_map.items() if v < score_value
-    ]
-
-valid_symbols_set = set(valid_symbols) | {BENCHMARK}
-
-final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
-if BENCHMARK in all_symbols and BENCHMARK not in final_symbols:
-    final_symbols.insert(0, BENCHMARK)
-'''
 # ── Sort final_symbols: benchmark first, then by score descending ───────────
 final_symbols = sorted(
     final_symbols,
