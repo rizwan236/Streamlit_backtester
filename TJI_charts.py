@@ -102,6 +102,66 @@ with st.sidebar.popover(
 
 selected_symbols = get_checked_symbols()
 
+
+# ── Latest Score filter: BETWEEN a range ────────────────────────────────────
+st.sidebar.subheader("Score Filter (latest value)")
+
+# Global min / max (excluding benchmark) to size the slider sensibly
+tji_scores = [v for s, v in latest_scores_map.items() if s != BENCHMARK]
+if tji_scores:
+    score_min_data = float(min(tji_scores))
+    score_max_data = float(max(tji_scores))
+else:
+    score_min_data, score_max_data = 0.0, 1.0
+
+if score_min_data == score_max_data:
+    score_min_data -= 0.5
+    score_max_data += 0.5
+
+range_mode = st.sidebar.radio(
+    "Range input", ["Slider", "Manual"], horizontal=True
+)
+
+if range_mode == "Slider":
+    score_range = st.sidebar.slider(
+        "Score between",
+        min_value=float(score_min_data),
+        max_value=float(score_max_data),
+        value=(float(score_min_data), float(score_max_data)),
+        step=0.01,
+        format="%.2f",
+    )
+else:
+    c1, c2 = st.sidebar.columns(2)
+    score_lo = c1.number_input(
+        "Min", value=float(score_min_data), step=0.1, format="%.4f"
+    )
+    score_hi = c2.number_input(
+        "Max", value=float(score_max_data), step=0.1, format="%.4f"
+    )
+    score_range = (min(score_lo, score_hi), max(score_lo, score_hi))
+
+score_lo, score_hi = score_range
+
+valid_symbols = [
+    s for s, v in latest_scores_map.items()
+    if score_lo <= v <= score_hi
+]
+valid_symbols_set = set(valid_symbols) | {BENCHMARK}
+
+final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
+if BENCHMARK in all_symbols and BENCHMARK not in final_symbols:
+    final_symbols.insert(0, BENCHMARK)
+'''
+final_symbols = sorted(
+    final_symbols,
+    key=lambda s: (
+        0 if s == BENCHMARK else 1,
+        -latest_scores_map.get(s, float("-inf")),
+    ),
+)
+
+
 # ── Latest Score filter ─────────────────────────────────────────────────────
 st.sidebar.subheader("Score Filter (latest value)")
 score_mode = st.sidebar.radio(
@@ -125,7 +185,7 @@ valid_symbols_set = set(valid_symbols) | {BENCHMARK}
 final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
 if BENCHMARK in all_symbols and BENCHMARK not in final_symbols:
     final_symbols.insert(0, BENCHMARK)
-
+'''
 # ── Sort final_symbols: benchmark first, then by score descending ───────────
 final_symbols = sorted(
     final_symbols,
@@ -313,9 +373,17 @@ with st.expander("📋 Show raw data for selected symbols"):
     )
 
 # ── Sidebar footer ──────────────────────────────────────────────────────────
+
 st.sidebar.markdown("---")
+#st.sidebar.caption(
+#    f"Showing **{len(final_symbols)}** symbol(s) · "
+#    f"Metric: **{metric}** · "
+#    f"Score {score_mode.lower()} **{score_value}**"
+#)
+
 st.sidebar.caption(
     f"Showing **{len(final_symbols)}** symbol(s) · "
     f"Metric: **{metric}** · "
-    f"Score {score_mode.lower()} **{score_value}**"
+    f"Score between **{score_lo:.2f}** and **{score_hi:.2f}**"
 )
+
