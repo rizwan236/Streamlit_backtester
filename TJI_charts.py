@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import plotly.graph_objects as go
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -21,21 +20,20 @@ def load_data():
     df = pd.read_pickle(url, compression="gzip")
     df.fillna(0, inplace=True)
 
-    # Ensure Date is datetime
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"])
 
-    # Filter: TJI_* symbols AND ^NSEI benchmark
+    # Keep TJI_* symbols and ^NSEI benchmark
     df = df[
         df["Symbol"].str.startswith("TJI_", na=False)
         | (df["Symbol"] == "^NSEI")
     ].copy()
 
-    # ── Normalize Close to start at 1000 per symbol ─────────────────────────
+    # Normalize Close to start at 1000 per symbol
     df = df.sort_values(["Symbol", "Date"])
     first_close = df.groupby("Symbol")["Close"].transform("first")
     df["Close_Base1000"] = (df["Close"] / first_close) * 1000.0
-    df["Close"]  = df["Close_Base1000"]
+    df["Close"] = df["Close_Base1000"]
 
     return df
 
@@ -45,16 +43,45 @@ if df.empty:
     st.error("No data found after filtering (TJI_* and ^NSEI).")
     st.stop()
 
-# ── Sidebar filters ──────────────────────────────────────────────────────────
+all_symbols = sorted(df["Symbol"].unique())
+
+# ── Initialize session_state keys for each symbol checkbox ───────────────────
+for s in all_symbols:
+    key = f"sym_{s}"
+    if key not in st.session_state:
+        # Default: first 3 symbols checked
+        st.session_state[key] = s in all_symbols[:3]
+
+# ── Helper to get currently checked symbols ─────────────────────────────────
+def get_checked_symbols():
+    return [s for s in all_symbols if st.session_state.get(f"sym_{s}", False)]
+
+# ── Sidebar ──────────────────────────────────────────────────────────────────
 st.sidebar.header("🔍 Filters")
 
-all_symbols = sorted(df["Symbol"].unique())
-selected_symbols = st.sidebar.multiselect(
-    "Select Symbols",
-    options=all_symbols,
-    default=all_symbols[:3],
-    help="Choose one or more symbols to display.",
-)
+# ── Dropdown (popover) with checkbox list ───────────────────────────────────
+checked = get_checked_symbols()
+with st.sidebar.popover(
+    f"📌 Symbols  ({len(checked)}/{len(all_symbols)} selected)",
+    use_container_width=True,
+):
+    b1, b2 = st.columns(2)
+    if b1.button("✅ Select All", use_container_width=True):
+        for s in all_symbols:
+            st.session_state[f"sym_{s}"] = True
+        st.rerun()
+    if b2.button("❌ Clear All", use_container_width=True):
+        for s in all_symbols:
+            st.session_state[f"sym_{s}"] = False
+        st.rerun()
+
+    st.markdown("---")
+
+    # Checkbox list — tick / untick symbols
+    for s in all_symbols:
+        st.checkbox(s, key=f"sym_{s}")
+
+selected_symbols = get_checked_symbols()
 
 # ── Latest Score filter (greater / less than) ───────────────────────────────
 st.sidebar.subheader("Score Filter (latest value)")
@@ -62,20 +89,12 @@ score_mode = st.sidebar.radio(
     "Condition", ["Greater than", "Less than"], horizontal=True
 )
 score_value = st.sidebar.number_input(
-    "Score threshold",
-    value=0.0,
-    step=0.1,
-    format="%.4f",
+    "Score threshold", value=0.0, step=0.1, format="%.4f"
 )
 
-# Compute latest Score per symbol
 latest_scores = (
-    df.sort_values("Date")
-    .groupby("Symbol")["Score"]
-    .last()
-    .reset_index()
+    df.sort_values("Date").groupby("Symbol")["Score"].last().reset_index()
 )
-
 if score_mode == "Greater than":
     valid_symbols = latest_scores.loc[
         latest_scores["Score"] > score_value, "Symbol"
@@ -85,17 +104,18 @@ else:
         latest_scores["Score"] < score_value, "Symbol"
     ].tolist()
 
-# ^NSEI is a benchmark — keep it regardless of Score filter
+# ^NSEI always passes the Score filter (benchmark)
 valid_symbols_set = set(valid_symbols) | {"^NSEI"}
 
+# Intersect manual ticks with Score filter
 if selected_symbols:
     final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
 else:
     final_symbols = [s for s in valid_symbols_set if s in all_symbols]
 
-# ── Metric selector ──────────────────────────────────────────────────────────
+# ── Metric selector ─────────────────────────────────────────────────────────
 metric_options = [
-    "Close_Base1000",       # ← normalized Close (base 1000)
+    "Close_Base1000",
     "Close",
     "Stock_Cumulative_Return",
     "MRP",
@@ -113,7 +133,7 @@ metric_options = [
 ]
 metric = st.sidebar.selectbox("📊 Metric to plot", metric_options, index=0)
 
-# ── Main panel ───────────────────────────────────────────────────────────────
+# ── Main panel ──────────────────────────────────────────────────────────────
 st.title("📈 TJI Symbol Interactive Dashboard")
 
 if not final_symbols:
@@ -122,13 +142,14 @@ if not final_symbols:
 
 plot_df = df[df["Symbol"].isin(final_symbols)].copy().sort_values("Date")
 
-# ── Chart ────────────────────────────────────────────────────────────────────
+# ── Chart ───────────────────────────────────────────────────────────────────
 fig = px.line(
     plot_df,
     x="Date",
     y=metric,
     color="Symbol",
-    title=f"{metric} over Time" + (" (base 1000)" if metric == "Close_Base1000" else ""),
+    title=f"{metric} over Time"
+    + (" (base 1000)" if metric == "Close_Base1000" else ""),
     labels={metric: metric, "Date": "Date"},
     template="plotly_white",
 )
@@ -139,7 +160,7 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# ── Raw data expander ────────────────────────────────────────────────────────
+# ── Raw data expander ───────────────────────────────────────────────────────
 with st.expander("📋 Show raw data for selected symbols"):
     st.dataframe(
         plot_df[["Date", "Symbol", "Close", "Close_Base1000", metric]]
@@ -148,7 +169,7 @@ with st.expander("📋 Show raw data for selected symbols"):
         use_container_width=True,
     )
 
-# ── Sidebar info ─────────────────────────────────────────────────────────────
+# ── Sidebar footer ──────────────────────────────────────────────────────────
 st.sidebar.markdown("---")
 st.sidebar.caption(
     f"Showing **{len(final_symbols)}** symbol(s) · "
