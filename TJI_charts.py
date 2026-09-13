@@ -270,7 +270,8 @@ if not nsei.empty and nsei[metric].notna().any():
 
 # ── Layout ──────────────────────────────────────────────────────────────────
 fig.update_layout(
-    title=f"{metric} over Time"
+    #title=f"{metric} over Time"
+    title=f"{metric}"
     + (" (base 1000)" if metric == "Close_Base1000xx" else ""),
     hovermode="closest",
     template="plotly_white",
