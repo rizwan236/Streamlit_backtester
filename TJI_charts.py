@@ -28,7 +28,11 @@ def load_data():
 df = load_data()
 
 # ── Initial filter: only symbols starting with TJI_ ─────────────────────────
-df = df[df["Symbol"].str.startswith("TJI_", na=False)].copy()
+#df = df[df["Symbol"].str.startswith("TJI_", na=False)].copy()
+df = df[
+    df["Symbol"].str.startswith("TJI_", na=False)
+    | df["Symbol"].str.startswith("^NSEI", na=False)
+].copy()
 
 if df.empty:
     st.error("No TJI_ symbols found in the dataset.")
