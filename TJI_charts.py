@@ -33,7 +33,7 @@ def load_data():
     df = df.sort_values(["Symbol", "Date"])
     first_close = df.groupby("Symbol")["Close"].transform("first")
     df["Close_Base1000"] = (df["Close"] / first_close) * 1000.0
-    df["Close"] = df["Close_Base1000"]
+    df["Close"] =df["Close_Base1000"] 
 
     return df
 
@@ -44,19 +44,24 @@ if df.empty:
     st.stop()
 
 all_symbols = sorted(df["Symbol"].unique())
+BENCHMARK = "^NSEI"
 
-# ── Initialize session_state keys for each symbol checkbox ───────────────────
+# ── Initialize session_state for each symbol checkbox ────────────────────────
+# Default: ^NSEI always checked; first 3 TJI_ symbols checked
+default_symbols = {BENCHMARK} | set(
+    [s for s in all_symbols if s != BENCHMARK][:3]
+)
+
 for s in all_symbols:
     key = f"sym_{s}"
     if key not in st.session_state:
-        # Default: first 3 symbols checked
-        st.session_state[key] = s in all_symbols[:3]
+        st.session_state[key] = s in default_symbols
 
-# ── Helper to get currently checked symbols ─────────────────────────────────
+# ── Helper: get currently checked symbols ───────────────────────────────────
 def get_checked_symbols():
     return [s for s in all_symbols if st.session_state.get(f"sym_{s}", False)]
 
-# ── Sidebar ──────────────────────────────────────────────────────────────────
+# ── Sidebar ─────────────────────────────────────────────────────────────────
 st.sidebar.header("🔍 Filters")
 
 # ── Dropdown (popover) with checkbox list ───────────────────────────────────
@@ -77,8 +82,22 @@ with st.sidebar.popover(
 
     st.markdown("---")
 
-    # Checkbox list — tick / untick symbols
+    # Benchmark pinned at the top (cannot be unchecked)
+    if BENCHMARK in all_symbols:
+        st.checkbox(
+            f"{BENCHMARK}  (benchmark — always shown)",
+            value=True,
+            disabled=True,
+            key="benchmark_pinned",
+        )
+        st.session_state[f"sym_{BENCHMARK}"] = True  # force-on
+
+    st.markdown("---")
+
+    # TJI_ symbols — tick / untick
     for s in all_symbols:
+        if s == BENCHMARK:
+            continue
         st.checkbox(s, key=f"sym_{s}")
 
 selected_symbols = get_checked_symbols()
@@ -104,14 +123,16 @@ else:
         latest_scores["Score"] < score_value, "Symbol"
     ].tolist()
 
-# ^NSEI always passes the Score filter (benchmark)
-valid_symbols_set = set(valid_symbols) | {"^NSEI"}
+# ^NSEI bypasses the Score filter (benchmark)
+valid_symbols_set = set(valid_symbols) | {BENCHMARK}
 
-# Intersect manual ticks with Score filter
-if selected_symbols:
-    final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
-else:
-    final_symbols = [s for s in valid_symbols_set if s in all_symbols]
+# Build final list from checked symbols, honoring the Score filter
+# (^NSEI is always kept if it was checked — it's already forced True above)
+final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
+
+# Safety: ensure benchmark is always in the final list
+if BENCHMARK in all_symbols and BENCHMARK not in final_symbols:
+    final_symbols.insert(0, BENCHMARK)
 
 # ── Metric selector ─────────────────────────────────────────────────────────
 metric_options = [
