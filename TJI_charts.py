@@ -348,7 +348,7 @@ with tab_tji:
     # ── Raw data expander ───────────────────────────────────────────────────────
     with st.expander("📋 Show raw data for selected symbols"):
         st.dataframe(
-            plot_df[["Date", "Symbol", "Close", "Close_Base1000", metric]]
+            plot_df[["Date", "Symbol", "Close", metric]]
             .drop_duplicates(subset=["Date", "Symbol"])
             .sort_values(["Symbol", "Date"]),
             use_container_width=True,
