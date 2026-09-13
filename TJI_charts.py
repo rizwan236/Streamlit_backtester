@@ -20,37 +20,43 @@ def load_data():
     )
     df = pd.read_pickle(url, compression="gzip")
     df.fillna(0, inplace=True)
+
     # Ensure Date is datetime
     if "Date" in df.columns:
         df["Date"] = pd.to_datetime(df["Date"])
+
+    # Filter: TJI_* symbols AND ^NSEI benchmark
+    df = df[
+        df["Symbol"].str.startswith("TJI_", na=False)
+        | (df["Symbol"] == "^NSEI")
+    ].copy()
+
+    # ── Normalize Close to start at 1000 per symbol ─────────────────────────
+    df = df.sort_values(["Symbol", "Date"])
+    first_close = df.groupby("Symbol")["Close"].transform("first")
+    df["Close_Base1000"] = (df["Close"] / first_close) * 1000.0
+    df["Close"]  = df["Close_Base1000"]
+
     return df
 
 df = load_data()
 
-# ── Initial filter: only symbols starting with TJI_ ─────────────────────────
-#df = df[df["Symbol"].str.startswith("TJI_", na=False)].copy()
-df = df[
-    df["Symbol"].str.startswith("TJI_", na=False)
-    | df["Symbol"].str.startswith("^NSEI", na=False)
-].copy()
-
 if df.empty:
-    st.error("No TJI_ symbols found in the dataset.")
+    st.error("No data found after filtering (TJI_* and ^NSEI).")
     st.stop()
 
 # ── Sidebar filters ──────────────────────────────────────────────────────────
 st.sidebar.header("🔍 Filters")
 
-# 1. Symbol multi‑select
 all_symbols = sorted(df["Symbol"].unique())
 selected_symbols = st.sidebar.multiselect(
     "Select Symbols",
     options=all_symbols,
-    default=all_symbols[:3],          # first 3 by default
-    help="Choose one or more TJI_ symbols to display.",
+    default=all_symbols[:3],
+    help="Choose one or more symbols to display.",
 )
 
-# 2. Latest Score filter (greater / less than)
+# ── Latest Score filter (greater / less than) ───────────────────────────────
 st.sidebar.subheader("Score Filter (latest value)")
 score_mode = st.sidebar.radio(
     "Condition", ["Greater than", "Less than"], horizontal=True
@@ -62,7 +68,7 @@ score_value = st.sidebar.number_input(
     format="%.4f",
 )
 
-# Compute latest score per symbol
+# Compute latest Score per symbol
 latest_scores = (
     df.sort_values("Date")
     .groupby("Symbol")["Score"]
@@ -79,14 +85,17 @@ else:
         latest_scores["Score"] < score_value, "Symbol"
     ].tolist()
 
-# Intersect with manual selection (if any)
+# ^NSEI is a benchmark — keep it regardless of Score filter
+valid_symbols_set = set(valid_symbols) | {"^NSEI"}
+
 if selected_symbols:
-    final_symbols = [s for s in selected_symbols if s in valid_symbols]
+    final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
 else:
-    final_symbols = valid_symbols
+    final_symbols = [s for s in valid_symbols_set if s in all_symbols]
 
 # ── Metric selector ──────────────────────────────────────────────────────────
 metric_options = [
+    "Close_Base1000",       # ← normalized Close (base 1000)
     "Close",
     "Stock_Cumulative_Return",
     "MRP",
@@ -111,11 +120,7 @@ if not final_symbols:
     st.warning("No symbols match the current filters. Adjust the sidebar.")
     st.stop()
 
-# Filter data for the chosen symbols
-plot_df = df[df["Symbol"].isin(final_symbols)].copy()
-
-# Ensure Date is sorted
-plot_df = plot_df.sort_values("Date")
+plot_df = df[df["Symbol"].isin(final_symbols)].copy().sort_values("Date")
 
 # ── Chart ────────────────────────────────────────────────────────────────────
 fig = px.line(
@@ -123,7 +128,7 @@ fig = px.line(
     x="Date",
     y=metric,
     color="Symbol",
-    title=f"{metric} over Time",
+    title=f"{metric} over Time" + (" (base 1000)" if metric == "Close_Base1000" else ""),
     labels={metric: metric, "Date": "Date"},
     template="plotly_white",
 )
@@ -134,10 +139,12 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# ── Optional: raw data table ─────────────────────────────────────────────────
+# ── Raw data expander ────────────────────────────────────────────────────────
 with st.expander("📋 Show raw data for selected symbols"):
     st.dataframe(
-        plot_df[["Date", "Symbol", metric]].sort_values(["Symbol", "Date"]),
+        plot_df[["Date", "Symbol", "Close", "Close_Base1000", metric]]
+        .drop_duplicates(subset=["Date", "Symbol"])
+        .sort_values(["Symbol", "Date"]),
         use_container_width=True,
     )
 
