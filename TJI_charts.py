@@ -43,6 +43,11 @@ if df.empty:
 all_symbols = sorted(df["Symbol"].unique())
 BENCHMARK = "^NSEI"
 
+# ── Latest score per symbol (for legend sorting/labels) ─────────────────────
+latest_scores_map = (
+    df.sort_values("Date").groupby("Symbol")["Score"].last().to_dict()
+)
+
 # ── Session state defaults ──────────────────────────────────────────────────
 default_symbols = {BENCHMARK} | set(
     [s for s in all_symbols if s != BENCHMARK][:3]
@@ -85,10 +90,15 @@ with st.sidebar.popover(
 
     st.markdown("---")
 
-    for s in all_symbols:
-        if s == BENCHMARK:
-            continue
-        st.checkbox(s, key=f"sym_{s}")
+    # Sort TJI symbols by latest Score descending in the checkbox list too
+    tjis_sorted = sorted(
+        [s for s in all_symbols if s != BENCHMARK],
+        key=lambda s: latest_scores_map.get(s, float("-inf")),
+        reverse=True,
+    )
+    for s in tjis_sorted:
+        score_val = latest_scores_map.get(s, 0.0)
+        st.checkbox(f"{s}  ·  Score {score_val:.2f}", key=f"sym_{s}")
 
 selected_symbols = get_checked_symbols()
 
@@ -101,17 +111,14 @@ score_value = st.sidebar.number_input(
     "Score threshold", value=0.0, step=0.1, format="%.4f"
 )
 
-latest_scores = (
-    df.sort_values("Date").groupby("Symbol")["Score"].last().reset_index()
-)
 if score_mode == "Greater than":
-    valid_symbols = latest_scores.loc[
-        latest_scores["Score"] > score_value, "Symbol"
-    ].tolist()
+    valid_symbols = [
+        s for s, v in latest_scores_map.items() if v > score_value
+    ]
 else:
-    valid_symbols = latest_scores.loc[
-        latest_scores["Score"] < score_value, "Symbol"
-    ].tolist()
+    valid_symbols = [
+        s for s, v in latest_scores_map.items() if v < score_value
+    ]
 
 valid_symbols_set = set(valid_symbols) | {BENCHMARK}
 
@@ -119,9 +126,18 @@ final_symbols = [s for s in selected_symbols if s in valid_symbols_set]
 if BENCHMARK in all_symbols and BENCHMARK not in final_symbols:
     final_symbols.insert(0, BENCHMARK)
 
+# ── Sort final_symbols: benchmark first, then by score descending ───────────
+final_symbols = sorted(
+    final_symbols,
+    key=lambda s: (
+        0 if s == BENCHMARK else 1,                       # benchmark first
+        -latest_scores_map.get(s, float("-inf")),         # then desc score
+    ),
+)
+
 # ── Metric selector ─────────────────────────────────────────────────────────
 metric_options = [
-    #"Close_Base1000",
+    "Close_Base1000",
     "Close",
     "Stock_Cumulative_Return",
     "MRP",
@@ -148,50 +164,67 @@ if not final_symbols:
 
 plot_df = df[df["Symbol"].isin(final_symbols)].copy().sort_values("Date")
 
-# ── Columns to show in hover tooltip ────────────────────────────────────────
+# ── Hover metrics ───────────────────────────────────────────────────────────
 hover_metrics = [
-    "Close", "Volume", "Score",
+    "Close_Base1000", "Close", "Volume", "Score",
     "MRP", "MRP13", "MRP25", "DD", "DD_PCT",
     "Beta", "RS", "SMA_200C", "Stock_Cumulative_Return",
 ]
 hover_metrics = [m for m in hover_metrics if m in plot_df.columns]
 
-# ── Build chart with full control ───────────────────────────────────────────
+# ── Build chart ─────────────────────────────────────────────────────────────
 fig = go.Figure()
+
+# Palette for TJI symbols (assign by index so it's stable)
+palette = [
+    "#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd",
+    "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
+    "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
+]
+color_idx = 0
 
 for sym in final_symbols:
     sub = plot_df[plot_df["Symbol"] == sym].sort_values("Date").copy()
     if sub.empty:
         continue
 
-    # Build hover template with all metrics for this symbol only
+    # Build the hover template (all metrics for THIS symbol only)
+    # Use explicit font colors inside the tooltip for readability
     hovertemplate = (
-        f"<b style='font-size:14px'>{sym}</b><br>"
-        "<span style='color:#888'>Date</span>: %{{x|%Y-%m-%d}}<br>"
-        "<span style='color:#888'>Plotted</span>: %{{y:.4f}}<br>"
+        f"<b style='font-size:14px;color:#ffffff'>{sym}</b><br>"
+        f"<span style='color:#c8c8c8'>Date</span>: "
+        f"<span style='color:#ffffff'>%{{x|%Y-%m-%d}}</span><br>"
+        f"<span style='color:#c8c8c8'>Plotted</span>: "
+        f"<span style='color:#ffffff'>%{{y:.4f}}</span><br>"
     )
     for i, m in enumerate(hover_metrics):
-        hovertemplate += f"<span style='color:#888'>{m}</span>: %{{customdata[{i}]:.4f}}<br>"
-    hovertemplate += "<extra></extra>"  # hide trace-name box
+        hovertemplate += (
+            f"<span style='color:#c8c8c8'>{m}</span>: "
+            f"<span style='color:#ffffff'>%{{customdata[{i}]:.4f}}</span><br>"
+        )
+    hovertemplate += "<extra></extra>"
 
     customdata = sub[hover_metrics].values
 
-    # ^NSEI rendered as a distinct dotted black line
+    score_val = latest_scores_map.get(sym, 0.0)
+    legend_label = f"{sym}_{score_val:.2f}"
+
     if sym == BENCHMARK:
         line_style = dict(color="#000000", width=3, dash="dot")
-        opacity = 0.9
+        opacity = 0.95
         legend_rank = 0
     else:
-        line_style = dict(width=2)
+        line_style = dict(color=palette[color_idx % len(palette)], width=2)
+        color_idx += 1
         opacity = 1.0
-        legend_rank = 1
+        legend_rank = None
 
     fig.add_trace(
         go.Scatter(
             x=sub["Date"],
             y=sub[metric],
             mode="lines",
-            name=sym,
+            name=legend_label,
             line=line_style,
             opacity=opacity,
             customdata=customdata,
@@ -200,7 +233,7 @@ for sym in final_symbols:
         )
     )
 
-# ── Mark ^NSEI min & max on the plotted metric ──────────────────────────────
+# ── Mark ^NSEI high / low ───────────────────────────────────────────────────
 nsei = plot_df[plot_df["Symbol"] == BENCHMARK].sort_values("Date")
 if not nsei.empty and nsei[metric].notna().any():
     idx_max = nsei[metric].idxmax()
@@ -216,7 +249,7 @@ if not nsei.empty and nsei[metric].notna().any():
             name=f"{BENCHMARK} High/Low",
             marker=dict(
                 size=15,
-                color=["#2ca02c", "#d62728"],   # green=high, red=low
+                color=["#2ca02c", "#d62728"],
                 symbol=["triangle-up", "triangle-down"],
                 line=dict(width=2, color="black"),
             ),
@@ -224,46 +257,54 @@ if not nsei.empty and nsei[metric].notna().any():
             textposition=["top center", "bottom center"],
             textfont=dict(size=12, color="black"),
             hovertemplate=(
-                f"<b>{BENCHMARK}</b><br>"
-                "Date: %{x|%Y-%m-%d}<br>"
-                "Value: %{y:,.4f}<extra></extra>"
+                f"<b style='color:#ffffff'>{BENCHMARK}</b><br>"
+                "<span style='color:#c8c8c8'>Date</span>: "
+                "<span style='color:#ffffff'>%{x|%Y-%m-%d}</span><br>"
+                "<span style='color:#c8c8c8'>Value</span>: "
+                "<span style='color:#ffffff'>%{y:,.4f}</span>"
+                "<extra></extra>"
             ),
             showlegend=True,
         )
     )
 
-# ── Layout: bigger chart, per-trace hover ───────────────────────────────────
+# ── Layout ──────────────────────────────────────────────────────────────────
 fig.update_layout(
     title=f"{metric} over Time"
     + (" (base 1000)" if metric == "Close_Base1000" else ""),
-    hovermode="closest",       # ← hover shows ONLY the trace under the cursor
+    hovermode="closest",
     template="plotly_white",
-    height=900,                # ← bigger chart window
+    height=900,
     legend=dict(
         orientation="h",
         yanchor="bottom",
         y=1.02,
         xanchor="right",
         x=1,
-        font=dict(size=12),
+        font=dict(size=12, color="#000000"),
+        traceorder="normal",           # honor trace insertion order (= score desc)
     ),
-    margin=dict(l=60, r=40, t=80, b=60),
+    margin=dict(l=60, r=40, t=90, b=60),
     hoverlabel=dict(
-        bgcolor="white",
-        bordercolor="#444",
-        font=dict(size=12, family="monospace"),
+        bgcolor="#1f2430",             # dark background
+        bordercolor="#000000",
+        font=dict(size=13, family="monospace", color="#ffffff"),
         align="left",
     ),
 )
 fig.update_xaxes(showgrid=True, gridcolor="#eee")
 fig.update_yaxes(showgrid=True, gridcolor="#eee")
 
-st.plotly_chart(fig, use_container_width=True, config={"displaylogo": False})
+st.plotly_chart(
+    fig,
+    use_container_width=True,
+    config={"displaylogo": False},
+)
 
 # ── Raw data expander ───────────────────────────────────────────────────────
 with st.expander("📋 Show raw data for selected symbols"):
     st.dataframe(
-        plot_df[["Date", "Symbol", "Close", metric]]
+        plot_df[["Date", "Symbol", "Close", "Close_Base1000", metric]]
         .drop_duplicates(subset=["Date", "Symbol"])
         .sort_values(["Symbol", "Date"]),
         use_container_width=True,
