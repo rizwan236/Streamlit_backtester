@@ -118,30 +118,16 @@ if score_min_data == score_max_data:
     score_min_data -= 0.5
     score_max_data += 0.5
 
-range_mode = st.sidebar.radio(
-    "Range input", ["Slider", "Manual"], horizontal=True
+c1, c2 = st.sidebar.columns(2)
+score_lo = c1.number_input(
+    "Min Score", value=float(score_min_data), step=0.1, format="%.2f"
 )
+score_hi = c2.number_input(
+    "Max Score", value=float(score_max_data), step=0.1, format="%.2f"
+)
+# Normalize if user typed them reversed
+score_lo, score_hi = min(score_lo, score_hi), max(score_lo, score_hi)
 
-if range_mode == "Slider":
-    score_range = st.sidebar.slider(
-        "Score between",
-        min_value=float(score_min_data),
-        max_value=float(score_max_data),
-        value=(float(score_min_data), float(score_max_data)),
-        step=0.01,
-        format="%.2f",
-    )
-else:
-    c1, c2 = st.sidebar.columns(2)
-    score_lo = c1.number_input(
-        "Min", value=float(score_min_data), step=0.1, format="%.4f"
-    )
-    score_hi = c2.number_input(
-        "Max", value=float(score_max_data), step=0.1, format="%.4f"
-    )
-    score_range = (min(score_lo, score_hi), max(score_lo, score_hi))
-
-score_lo, score_hi = score_range
 
 valid_symbols = [
     s for s, v in latest_scores_map.items()
