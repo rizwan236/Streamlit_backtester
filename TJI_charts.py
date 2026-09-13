@@ -210,7 +210,7 @@ for sym in final_symbols:
     legend_label = f"{sym}_{score_val:.2f}"
 
     if sym == BENCHMARK:
-        line_style = dict(color="#000000", width=3, dash="dot")
+        line_style = dict(color="#FFFFFF", width=3, dash="dot")
         opacity = 0.95
         legend_rank = 0
     else:
