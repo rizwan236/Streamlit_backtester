@@ -32,6 +32,13 @@ def load_index_constituents():
     idx = pd.read_csv(url)
     # Normalize column names — strip whitespace
     idx.columns = [c.strip() for c in idx.columns]
+    # Filter out rows where Stock1 is NaN, None, NA, or empty string
+    if "Stock1" in idx.columns:
+        idx = idx[
+            idx["Stock1"].notna()
+            & (idx["Stock1"].astype(str).str.strip() != "")
+            & (idx["Stock1"].astype(str).str.lower() != "nan")
+        ].copy()
     return idx
 
 
