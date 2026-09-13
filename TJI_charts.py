@@ -379,6 +379,8 @@ with tab_tji:
 with tab_index:
     st.title("📊 Index Constituents — Base 1000")
 
+    BENCHMARK = "^NSEI"
+
     idx_df = load_index_constituents()
     raw_df = load_combined_raw()
 
@@ -413,8 +415,11 @@ with tab_index:
         st.warning("No constituents found for this index.")
         st.stop()
 
+    # Always include benchmark
+    symbols_to_plot = list(dict.fromkeys(constituents + [BENCHMARK]))
+
     # ── Match to combined data ──────────────────────────────────────────────
-    plot_df2 = raw_df[raw_df["Symbol"].isin(constituents)].copy()
+    plot_df2 = raw_df[raw_df["Symbol"].isin(symbols_to_plot)].copy()
     if plot_df2.empty:
         st.warning(
             "None of the selected constituents were found in "
@@ -422,10 +427,27 @@ with tab_index:
         )
         st.stop()
 
-    # Normalize Close to base 1000
+    # ── Latest score map for these symbols ──────────────────────────────────
+    latest_scores_map2 = (
+        plot_df2.sort_values("Date")
+        .groupby("Symbol")["Score"]
+        .last()
+        .to_dict()
+    )
+
+    # ── Normalize Close to base 1000 ────────────────────────────────────────
     plot_df2 = plot_df2.sort_values(["Symbol", "Date"])
     first_close = plot_df2.groupby("Symbol")["Close"].transform("first")
     plot_df2["Close_Base1000"] = (plot_df2["Close"] / first_close) * 1000.0
+
+    # ── Sort: benchmark first, then by Score descending ─────────────────────
+    sorted_syms = sorted(
+        symbols_to_plot,
+        key=lambda s: (
+            0 if s == BENCHMARK else 1,
+            -latest_scores_map2.get(s, float("-inf")),
+        ),
+    )
 
     # ── Build chart ─────────────────────────────────────────────────────────
     fig2 = go.Figure()
@@ -434,6 +456,7 @@ with tab_index:
         "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf",
         "#aec7e8", "#ffbb78", "#98df8a", "#ff9896", "#c5b0d5",
     ]
+    color_idx2 = 0
 
     hover_metrics2 = [
         "Close", "Close_Base1000", "Volume", "Score",
@@ -442,10 +465,13 @@ with tab_index:
     ]
     hover_metrics2 = [m for m in hover_metrics2 if m in plot_df2.columns]
 
-    for i, sym in enumerate(constituents):
+    for sym in sorted_syms:
         sub = plot_df2[plot_df2["Symbol"] == sym].sort_values("Date")
         if sub.empty:
             continue
+
+        score_val = latest_scores_map2.get(sym, 0.0)
+        legend_label = f"{sym}_{score_val:.2f}"
 
         hovertemplate = (
             f"<b style='font-size:14px;color:#ffffff'>{sym}</b><br>"
@@ -461,15 +487,62 @@ with tab_index:
             )
         hovertemplate += "<extra></extra>"
 
+        if sym == BENCHMARK:
+            line_style = dict(color="#FFFFFF", width=3, dash="dot")
+            opacity = 0.95
+            legend_rank = 0
+        else:
+            line_style = dict(color=palette2[color_idx2 % len(palette2)], width=2)
+            color_idx2 += 1
+            opacity = 1.0
+            legend_rank = None
+
         fig2.add_trace(
             go.Scatter(
                 x=sub["Date"],
                 y=sub["Close_Base1000"],
                 mode="lines",
-                name=sym,
-                line=dict(color=palette2[i % len(palette2)], width=2),
+                name=legend_label,
+                line=line_style,
+                opacity=opacity,
                 customdata=sub[hover_metrics2].values,
                 hovertemplate=hovertemplate,
+                legendrank=legend_rank,
+            )
+        )
+
+    # ── Mark ^NSEI high / low ───────────────────────────────────────────────
+    nsei2 = plot_df2[plot_df2["Symbol"] == BENCHMARK].sort_values("Date")
+    if not nsei2.empty and nsei2["Close_Base1000"].notna().any():
+        idx_max = nsei2["Close_Base1000"].idxmax()
+        idx_min = nsei2["Close_Base1000"].idxmin()
+        x_max = nsei2.loc[idx_max, "Date"]; y_max = nsei2.loc[idx_max, "Close_Base1000"]
+        x_min = nsei2.loc[idx_min, "Date"]; y_min = nsei2.loc[idx_min, "Close_Base1000"]
+
+        fig2.add_trace(
+            go.Scatter(
+                x=[x_max, x_min],
+                y=[y_max, y_min],
+                mode="markers+text",
+                name=f"{BENCHMARK} High/Low",
+                marker=dict(
+                    size=15,
+                    color=["#2ca02c", "#d62728"],
+                    symbol=["triangle-up", "triangle-down"],
+                    line=dict(width=2, color="black"),
+                ),
+                text=[f"HIGH  {y_max:,.2f}", f"LOW  {y_min:,.2f}"],
+                textposition=["top center", "bottom center"],
+                textfont=dict(size=12, color="#FFFFFF"),
+                hovertemplate=(
+                    f"<b style='color:#ffffff'>{BENCHMARK}</b><br>"
+                    "<span style='color:#c8c8c8'>Date</span>: "
+                    "<span style='color:#ffffff'>%{x|%Y-%m-%d}</span><br>"
+                    "<span style='color:#c8c8c8'>Value</span>: "
+                    "<span style='color:#ffffff'>%{y:,.4f}</span>"
+                    "<extra></extra>"
+                ),
+                showlegend=True,
             )
         )
 
