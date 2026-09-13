@@ -281,7 +281,8 @@ fig.update_layout(
         y=1.02,
         xanchor="right",
         x=1,
-        font=dict(size=12, color="#000000"),
+        font=dict(size=13, color="#FFFFFF"),
+        #bgcolor="rgba(0,0,0,0)",   
         traceorder="normal",           # honor trace insertion order (= score desc)
     ),
     margin=dict(l=60, r=40, t=90, b=60),
