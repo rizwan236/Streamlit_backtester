@@ -215,9 +215,9 @@ with tab_tji:
     
     # ── Hover metrics ───────────────────────────────────────────────────────────
     hover_metrics = [
-        "Close_Base1000", "Close", "Volume", "Score",
-        "MRP", "MRP13", "MRP25", "DD", "DD_PCT",
-        "Beta", "RS", "SMA_200C", "Stock_Cumulative_Return",
+        "Close_Base1000", "Close", "Score",
+        "MRP", "DD_PCT",
+        "Beta", "RS", "SMA_200C",
     ]
     hover_metrics = [m for m in hover_metrics if m in plot_df.columns]
     
@@ -459,9 +459,9 @@ with tab_index:
     color_idx2 = 0
 
     hover_metrics2 = [
-        "Close", "Close_Base1000", "Volume", "Score",
-        "MRP", "MRP13", "MRP25", "DD", "DD_PCT",
-        "Beta", "RS", "SMA_200C", "Stock_Cumulative_Return",
+        "Close", "Close_Base1000", "Score",
+        "MRP", "DD_PCT",
+        "Beta", "RS", "SMA_200C",
     ]
     hover_metrics2 = [m for m in hover_metrics2 if m in plot_df2.columns]
 
