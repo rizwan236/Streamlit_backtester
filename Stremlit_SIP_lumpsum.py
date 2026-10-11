@@ -22,6 +22,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
+'''
 # Allow `python invest_dashboard.py` as well as `streamlit run invest_dashboard.py`
 if __name__ == "__main__":
     try:
@@ -35,7 +36,7 @@ if __name__ == "__main__":
             sys.exit(0)
     except ImportError:
         pass
-
+'''
 st.set_page_config(page_title="Lumpsum & SIP Analyzer", page_icon="📈", layout="wide")
 
 try:
